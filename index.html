@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="game-version" content="v3">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -191,7 +192,7 @@
                 t = '🟢 서버 연결됨 · ' + window.currentRoomChannel + '채널 ' + Math.max(1, n) + '명';
                 if (MPNet.isHost()) t += ' · 👑 내가 방장(몬스터 담당)';
             }
-            el.textContent = t + ' · v2';
+            el.textContent = t + ' · ' + ((document.querySelector('meta[name="game-version"]') || {}).content || '');
         }
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderStatus); else renderStatus();
 
@@ -5442,6 +5443,14 @@
         const found = list.find(s => s.name === saveName);
         if (!found) return;
         Object.assign(player, found.player);
+        (function fixMaxExpForNewCurve() {
+            let need = 750;
+            for (let l = 1; l < (player.level || 1); l++) need = Math.max(400, Math.floor(need * 1.3 + 320));
+            if (player.maxExp > need) {
+                player.maxExp = need;
+                if (player.exp >= need) player.exp = need - 1;
+            }
+        })();
         pets.length = 0;
         if (Array.isArray(found.pets)) {
             found.pets.forEach(p => pets.push(p));
@@ -6288,12 +6297,71 @@
         }
     });
 
+
+    // =========================================================================
+    // 자동 업데이트 알림: 2분마다 GitHub에 새 버전이 올라왔는지 확인
+    // =========================================================================
+    (function setupUpdateChecker() {
+        const myVersion = (document.querySelector('meta[name="game-version"]') || {}).content || '';
+        let shownFor = '';
+        function showBanner(newVer) {
+            if (shownFor === newVer) return;
+            shownFor = newVer;
+            let el = document.getElementById('update-banner');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'update-banner';
+                el.style.cssText = 'position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;padding:8px 12px;border-radius:14px;background:rgba(15,23,42,.95);border:2px solid #fbbf24;box-shadow:0 8px 24px rgba(0,0,0,.5);font:700 12px "Noto Sans KR",sans-serif;color:#fde68a;max-width:92vw';
+                document.body.appendChild(el);
+            }
+            el.innerHTML = '';
+            const msg = document.createElement('span');
+            msg.textContent = '🆕 새 버전(' + newVer + ')이 나왔습니다!';
+            const btnSave = document.createElement('button');
+            btnSave.textContent = '💾 저장하고 업데이트';
+            btnSave.style.cssText = 'padding:5px 10px;border-radius:10px;background:#16a34a;color:#fff;font-weight:900;border:0;cursor:pointer';
+            btnSave.onclick = async function () {
+                btnSave.disabled = true;
+                btnSave.textContent = '저장 중…';
+                try {
+                    const inp = document.getElementById('save-name-input');
+                    if (inp && !inp.value.trim()) inp.value = player.name || '마법사';
+                    await saveCurrentGame();
+                } catch (e) {}
+                setTimeout(function () { location.replace(location.pathname + '?v=' + encodeURIComponent(newVer)); }, 500);
+            };
+            const btnNow = document.createElement('button');
+            btnNow.textContent = '저장 없이 업데이트';
+            btnNow.style.cssText = 'padding:5px 10px;border-radius:10px;background:#334155;color:#e2e8f0;font-weight:700;border:0;cursor:pointer';
+            btnNow.onclick = function () { location.replace(location.pathname + '?v=' + encodeURIComponent(newVer)); };
+            const btnLater = document.createElement('button');
+            btnLater.textContent = '나중에';
+            btnLater.style.cssText = 'padding:5px 8px;border-radius:10px;background:transparent;color:#94a3b8;font-weight:700;border:1px solid #475569;cursor:pointer';
+            btnLater.onclick = function () { el.remove(); };
+            el.appendChild(msg); el.appendChild(btnSave); el.appendChild(btnNow); el.appendChild(btnLater);
+        }
+        async function check() {
+            if (!myVersion || location.protocol === 'file:') return;
+            try {
+                const res = await fetch(location.pathname + '?vcheck=' + Date.now(), { cache: 'no-store', headers: { Range: 'bytes=0-4095' } });
+                const text = await res.text();
+                const m = text.match(/<meta name="game-version" content="([^"]+)"/);
+                if (m && m[1] && m[1] !== myVersion) showBanner(m[1]);
+            } catch (e) {}
+        }
+        setTimeout(check, 15000);
+        setInterval(check, 120000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+    })();
+
     function gameLoop() {
         // 갤럭시 천지인 등 모바일 가상 키보드로 입력창에 글자를 조합 중일 때는 60FPS 캔버스 리페인트를 잠시 멈춰 자모 역전('ㅣㅇ') 현상을 원천 방지
         if (!isTextInputFocused()) {
             updateGame();
             drawWorld();
             updateAndDrawPokedexPreview();
+        } else if (mpRole === 'host') {
+            updateGame(); // 방장이 채팅·이름을 입력하는 동안에도 다른 사람들의 몬스터는 계속 움직임
         }
         requestAnimationFrame(gameLoop);
     }
