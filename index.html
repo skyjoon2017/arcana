@@ -116,11 +116,11 @@
         }
     </style>
 
-    <!-- 멀티플레이 모듈: Firebase Realtime Database (익명 로그인) -->
+    <!-- 멀티플레이 모듈 v2: Firebase Realtime Database (익명 로그인) — 플레이어 + 방장 기반 몬스터/드롭 공유 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getDatabase, ref, update, remove, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getDatabase, ref, update, set, get, push, remove, runTransaction, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDkbn4As25KD25QmtkPh6TvYSkGKhJL0zk",
@@ -148,14 +148,29 @@
         let connected = false;
         let failCode = '';
         let roomKey = null;
+        let base = null;            // 'rooms/<채널>'
         let myRef = null;
         let unsubs = [];
         let lastSent = {};
         let lastTsSent = 0;
-        const targets = {};          // 다른 플레이어의 "실제" 위치 (화면에는 부드럽게 따라감)
-        const SLOW_KEYS = ['name', 'level', 'robeColor', 'houseSlotIndex', 'chatText', 'thunderEventId', 'novaEventId', 'petsList', 'gifts', 'lives', 'shieldCnt'];
+        let myJoinedAt = 0;
+        let playersLoaded = false;
+        let hostNode = null;
+        let hostInvalidSince = 0;
+        let away = (typeof document !== 'undefined' && document.hidden) || false;
+        const lootMeta = {};        // 드롭 아이템 key -> 사라지는 시각
+        const handlers = {};
+        const targets = {};
+        const SLOW_KEYS = ['name', 'level', 'robeColor', 'houseSlotIndex', 'chatText', 'thunderEventId', 'novaEventId', 'petsList', 'gifts', 'lives', 'shieldCnt', 'away', 'joinedAt'];
+        const me = function () { return window.cloudUserId; };
 
         window.serverNow = function () { return Date.now() + serverOffset; };
+
+        function call(name) {
+            const fn = handlers[name];
+            if (typeof fn !== 'function') return;
+            try { fn.apply(null, Array.prototype.slice.call(arguments, 1)); } catch (e) { console.warn('[MP]', name, e); }
+        }
 
         // ---- 연결 상태 표시 (화면 아래 가운데) ----
         function renderStatus() {
@@ -172,12 +187,14 @@
             if (failCode) t = '🔴 서버 연결 실패 (' + failCode + ') · 혼자 하기만 가능';
             else if (!db) t = '⏳ 서버 연결 준비 중…';
             else if (!connected) t = '🟡 서버에 연결 중…';
-            else t = '🟢 서버 연결됨 · ' + window.currentRoomChannel + '채널 ' + Math.max(1, n) + '명';
-            el.textContent = t;
+            else {
+                t = '🟢 서버 연결됨 · ' + window.currentRoomChannel + '채널 ' + Math.max(1, n) + '명';
+                if (MPNet.isHost()) t += ' · 👑 내가 방장(몬스터 담당)';
+            }
+            el.textContent = t + ' · v2';
         }
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderStatus); else renderStatus();
 
-        // 게임 화면 갱신(채널 인원/집 목록/양도 목록)은 너무 자주 하지 않도록 묶어서 호출
         let notifyTimer = null;
         function notify() {
             renderStatus();
@@ -196,7 +213,7 @@
             if (!data) return;
             const map = window.remotePlayersMap;
             const prev = map[uid];
-            if (uid === window.cloudUserId) {
+            if (uid === me()) {
                 map[uid] = Object.assign(prev || {}, data, { uid: uid });
                 if (!prev) notify();
                 return;
@@ -205,27 +222,25 @@
             const entry = prev || {};
             const keepX = prev ? prev.x : data.x;
             const keepY = prev ? prev.y : data.y;
-            // 사라진 필드 정리
             if (prev) Object.keys(prev).forEach(function (k) { if (!(k in data) && k !== 'x' && k !== 'y') delete prev[k]; });
             Object.assign(entry, data);
             entry.uid = uid;
             targets[uid] = { x: Number(data.x) || 0, y: Number(data.y) || 0 };
             if (prev) {
                 entry.x = keepX; entry.y = keepY;
-                if (Math.hypot(targets[uid].x - keepX, targets[uid].y - keepY) > 600) { entry.x = targets[uid].x; entry.y = targets[uid].y; } // 순간이동
+                if (Math.hypot(targets[uid].x - keepX, targets[uid].y - keepY) > 600) { entry.x = targets[uid].x; entry.y = targets[uid].y; }
             }
             map[uid] = entry;
             if (slowChanged) notify();
         }
 
         function removeRemote(uid) {
-            if (uid === window.cloudUserId) return;
+            if (uid === me()) return;
             delete window.remotePlayersMap[uid];
             delete targets[uid];
             notify();
         }
 
-        // 받은 위치 사이를 부드럽게 이어서 그리기
         function smoothLoop() {
             const map = window.remotePlayersMap;
             for (const uid in targets) {
@@ -238,21 +253,72 @@
         }
         requestAnimationFrame(smoothLoop);
 
-        // 오래 소식 없는 플레이어(비정상 종료) 정리
         setInterval(function () {
             const now = window.serverNow();
             let changed = false;
             for (const uid in window.remotePlayersMap) {
-                if (uid === window.cloudUserId) continue;
+                if (uid === me()) continue;
                 const e = window.remotePlayersMap[uid];
                 if (e && e.ts && now - e.ts > 20000) { delete window.remotePlayersMap[uid]; delete targets[uid]; changed = true; }
             }
             if (changed) notify();
+            // 화면을 내려놔서 게임이 멈춰 있어도 "살아있음" 신호는 계속 보내기
+            if (myRef && now - lastTsSent > 5000) { lastTsSent = now; update(myRef, { ts: now }).catch(function () {}); }
         }, 3000);
 
         function chKey(ch) {
             return encodeURIComponent(String(ch || '1').trim() || '1').replace(/\./g, '%2E');
         }
+
+        // ---------------- 방장(몬스터 담당) 정하기 ----------------
+        function hostValid(h) {
+            if (!h || !h.u) return false;
+            if (window.serverNow() - (h.t || 0) > 6000) return false;
+            if (h.u === me()) return !away;
+            const e = window.remotePlayersMap[h.u];
+            return !!e && !e.away;
+        }
+
+        function electionTick() {
+            if (!db || !myRef || !playersLoaded || !connected || !base) return;
+            const hostRef = ref(db, base + '/host');
+            const now = window.serverNow();
+            if (hostValid(hostNode)) {
+                hostInvalidSince = 0;
+                if (hostNode.u === me() && now - (hostNode.t || 0) > 1500) set(hostRef, { u: me(), t: now }).catch(function () {});
+                return;
+            }
+            if (away) return;
+            if (!hostInvalidSince) hostInvalidSince = Date.now();
+            // 가장 먼저 들어온(화면을 보고 있는) 사람이 방장
+            let best = { u: me(), j: myJoinedAt };
+            for (const uid in window.remotePlayersMap) {
+                if (uid === me()) continue;
+                const e = window.remotePlayersMap[uid];
+                if (!e || e.away || !e.joinedAt) continue;
+                if (now - (e.ts || 0) > 20000) continue;
+                if (e.joinedAt < best.j || (e.joinedAt === best.j && uid < best.u)) best = { u: uid, j: e.joinedAt };
+            }
+            if (best.u !== me() && Date.now() - hostInvalidSince < 4000) return; // 그 사람이 맡을 때까지 잠깐 대기
+            runTransaction(hostRef, function (cur) {
+                if (hostValid(cur)) return; // 이미 누가 맡음
+                return { u: me(), t: window.serverNow() };
+            }).catch(function () {});
+        }
+        setInterval(electionTick, 1000);
+
+        document.addEventListener('visibilitychange', function () {
+            away = document.hidden;
+            if (myRef) {
+                lastSent.away = JSON.stringify(away);
+                update(myRef, { away: away, ts: window.serverNow() }).catch(function () {});
+            }
+            // 방장이 화면을 내려두면 게임이 멈추므로, 방장 자리를 다른 사람에게 넘김
+            if (away && base && db && hostNode && hostNode.u === me()) {
+                set(ref(db, base + '/host'), null).catch(function () {});
+            }
+            renderStatus();
+        });
 
         window.joinCoopRoom = function (roomCode) {
             window.currentRoomChannel = String(roomCode || "1").trim() || "1";
@@ -261,30 +327,70 @@
             if (key === roomKey && myRef) { notify(); return; }
             unsubs.forEach(function (u) { try { u(); } catch (e) {} });
             unsubs = [];
-            if (myRef) { try { onDisconnect(myRef).cancel(); remove(myRef); } catch (e) {} }
+            if (myRef) {
+                try { onDisconnect(myRef).cancel(); remove(myRef); } catch (e) {}
+                if (base && hostNode && hostNode.u === me()) set(ref(db, base + '/host'), null).catch(function () {});
+            }
             window.remotePlayersMap = {};
             for (const k in targets) delete targets[k];
+            for (const k in lootMeta) delete lootMeta[k];
             roomKey = key;
+            base = 'rooms/' + key;
             lastSent = {};
             lastTsSent = 0;
-            const playersRef = ref(db, 'rooms/' + key + '/players');
-            myRef = ref(db, 'rooms/' + key + '/players/' + window.cloudUserId);
-            onDisconnect(myRef).remove(); // 창을 닫으면 서버에서 자동 삭제
+            playersLoaded = false;
+            hostNode = null;
+            hostInvalidSince = 0;
+            myJoinedAt = window.serverNow();
+            call('roomChanged');
+            const playersRef = ref(db, base + '/players');
+            myRef = ref(db, base + '/players/' + me());
+            onDisconnect(myRef).remove();
             const onErr = function (e) { failCode = (e && e.code) || 'error'; renderStatus(); };
             unsubs.push(onChildAdded(playersRef, function (s) { applyRemote(s.key, s.val()); }, onErr));
             unsubs.push(onChildChanged(playersRef, function (s) { applyRemote(s.key, s.val()); }, onErr));
             unsubs.push(onChildRemoved(playersRef, function (s) { removeRemote(s.key); }, onErr));
+            const myBase = base;
+            get(playersRef).then(function (snap) {
+                if (base !== myBase) return;
+                const v = snap.val() || {};
+                for (const k in v) applyRemote(k, v[k]);
+                playersLoaded = true;
+                renderStatus();
+            }).catch(onErr);
+            unsubs.push(onValue(ref(db, base + '/host'), function (s) { hostNode = s.val(); renderStatus(); }, onErr));
+            // 몬스터 (방장이 보낸 것)
+            const monRef = ref(db, base + '/mon');
+            unsubs.push(onChildAdded(monRef, function (s) { call('monSet', s.key, s.val()); }));
+            unsubs.push(onChildChanged(monRef, function (s) { call('monSet', s.key, s.val()); }));
+            unsubs.push(onChildRemoved(monRef, function (s) { call('monDel', s.key); }));
+            // 다른 사람이 몬스터를 때린 기록 (방장만 처리)
+            unsubs.push(onChildAdded(ref(db, base + '/hits'), function (s) {
+                if (!MPNet.isHost()) return;
+                call('hits', s.val());
+                remove(s.ref).catch(function () {});
+            }));
+            // 방장이 보낸 사건들 (몬스터 공격, 처치, 번개 등)
+            unsubs.push(onChildAdded(ref(db, base + '/fx'), function (s) { call('fx', s.key, s.val()); }));
+            // 함께 줍는 드롭 아이템
+            const lootRef = ref(db, base + '/loot');
+            unsubs.push(onChildAdded(lootRef, function (s) {
+                const v = s.val();
+                if (v) lootMeta[s.key] = v.e || 0;
+                call('lootAdd', s.key, v);
+            }));
+            unsubs.push(onChildRemoved(lootRef, function (s) { delete lootMeta[s.key]; call('lootDel', s.key); }));
             notify();
         };
 
-        // ---- 선물(골드/생명석/아이템) 보내기 목록 ----
+        // ---- 선물(골드/생명석/아이템) ----
         let myGifts = [];
         function pruneGifts() {
             const now = window.serverNow();
             myGifts = myGifts.filter(function (g) { return now - g.ts < 30000; }).slice(-8);
         }
         window.pushGift = function (g) {
-            g.id = window.cloudUserId + '_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+            g.id = me() + '_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
             g.ts = window.serverNow();
             myGifts.push(g);
             pruneGifts();
@@ -299,6 +405,8 @@
                 s.petsList = s.petsList.slice(0, 24).map(function (pt) { return { type: pt.type || '', name: String(pt.name || '').slice(0, 16), color: pt.color || '' }; });
             }
             if (typeof s.chatTimer === 'number') s.chatTimer = Math.round(s.chatTimer);
+            s.joinedAt = myJoinedAt;
+            s.away = away;
             return JSON.parse(JSON.stringify(s));
         }
 
@@ -315,11 +423,47 @@
             const now = window.serverNow();
             if (n > 0 || now - lastTsSent > 5000) { diff.ts = now; lastTsSent = now; n++; }
             if (n === 0) return;
-            const me = window.remotePlayersMap[window.cloudUserId] || {};
-            Object.assign(me, s, { uid: window.cloudUserId, ts: now });
-            window.remotePlayersMap[window.cloudUserId] = me;
+            const mine = window.remotePlayersMap[me()] || {};
+            Object.assign(mine, s, { uid: me(), ts: now });
+            window.remotePlayersMap[me()] = mine;
             update(myRef, diff).catch(function (e) { failCode = (e && e.code) || 'write_failed'; renderStatus(); });
         };
+
+        // ---------------- 게임 코드가 쓰는 통신 함수 모음 ----------------
+        let hitQueue = [];
+        setInterval(function () {
+            if (!hitQueue.length || !base || !db) return;
+            const batch = hitQueue.splice(0);
+            push(ref(db, base + '/hits'), { u: me(), h: batch, t: window.serverNow() }).catch(function () {});
+        }, 100);
+
+        const noop = function () {};
+        const MPNet = {
+            on: function (name, fn) { handlers[name] = fn; },
+            ready: function () { return !!(db && myRef && connected && playersLoaded); },
+            isHost: function () { return !!(hostNode && hostNode.u === me() && hostValid(hostNode)); },
+            monDiff: function (diff) { if (db && base) update(ref(db, base + '/mon'), diff).catch(noop); },
+            monFull: function (obj) { if (db && base) set(ref(db, base + '/mon'), obj).catch(noop); },
+            monGet: function () { return (db && base) ? get(ref(db, base + '/mon')).then(function (s) { return s.val() || {}; }) : Promise.resolve({}); },
+            queueHit: function (nid, d, f) { hitQueue.push([String(nid), Math.round(d) || 0, Math.round((f || 0) * 10) / 10]); },
+            fxAdd: function (obj) { if (db && base) update(ref(db, base + '/fx'), obj).catch(noop); },
+            clearTransient: function () { if (db && base) { set(ref(db, base + '/fx'), null).catch(noop); set(ref(db, base + '/hits'), null).catch(noop); } },
+            lootAdd: function (item) { if (!db || !base) return null; const r = push(ref(db, base + '/loot')); set(r, item).catch(noop); return r.key; },
+            lootClaim: function (key) {
+                if (!db || !base) return Promise.resolve(false);
+                return runTransaction(ref(db, base + '/loot/' + key), function (cur) {
+                    if (cur === null) return; // 이미 누가 주웠음
+                    return null;
+                }).then(function (r) { return !!(r && r.committed); }).catch(function () { return false; });
+            },
+            lootClear: function () { if (db && base) set(ref(db, base + '/loot'), null).catch(noop); },
+            cleanupLoot: function () {
+                if (!db || !base || !MPNet.isHost()) return;
+                const now = window.serverNow();
+                for (const k in lootMeta) { if (now > (lootMeta[k] || 0) + 1000) { remove(ref(db, base + '/loot/' + k)).catch(noop); delete lootMeta[k]; } }
+            }
+        };
+        window.MPNet = MPNet;
 
         try {
             const app = initializeApp(firebaseConfig);
@@ -330,7 +474,7 @@
                 onValue(ref(db, '.info/serverTimeOffset'), function (s) { serverOffset = Number(s.val()) || 0; });
                 onValue(ref(db, '.info/connected'), function (s) {
                     connected = !!s.val();
-                    if (connected && myRef) { onDisconnect(myRef).remove(); lastSent = {}; lastTsSent = 0; } // 재접속 시 전체 상태 다시 보내기
+                    if (connected && myRef) { onDisconnect(myRef).remove(); lastSent = {}; lastTsSent = 0; }
                     renderStatus();
                 });
                 window.joinCoopRoom(window.currentRoomChannel);
@@ -593,14 +737,19 @@
                 </button>
             </div>
 
-            <button onclick="usePotion('mp')" class="potion-btn shrink-0 relative px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-left">
-                <span class="bg-sky-500 text-[9px] font-black px-1 rounded text-slate-950">4</span>
-                <i class="fa-solid fa-prescription-bottle text-sky-400 text-xs"></i>
-                <div>
-                    <div class="text-[10px] font-bold text-sky-200 leading-none">마나물약</div>
-                    <div id="count-mp" class="text-[10px] font-black text-white">x0</div>
-                </div>
-            </button>
+            <div class="flex items-center shrink-0">
+                <button onclick="usePotion('mp')" class="potion-btn relative px-2.5 py-1 rounded-l-lg flex items-center gap-1.5 text-left">
+                    <span class="bg-sky-500 text-[9px] font-black px-1 rounded text-slate-950">4</span>
+                    <i class="fa-solid fa-prescription-bottle text-sky-400 text-xs"></i>
+                    <div>
+                        <div id="label-mp-btn" class="text-[10px] font-bold text-sky-200 leading-none">마나(100)</div>
+                        <div id="count-mp" class="text-[10px] font-black text-white">x0</div>
+                    </div>
+                </button>
+                <button onclick="cycleMpPotionTier()" class="potion-btn px-1.5 py-1 rounded-r-lg border-l-0 text-[10px] text-sky-300 font-bold" title="마나 물약 단계 변경">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+            </div>
 
             <button onclick="usePotion('super')" class="potion-btn shrink-0 relative px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-left border-amber-500/60">
                 <span class="bg-amber-500 text-[9px] font-black px-1 rounded text-slate-950">5</span>
@@ -690,7 +839,7 @@
                         </div>
                         <div>
                             <div class="font-bold text-xs sm:text-sm text-orange-300">화덕 바비큐 & 별빛 빵 (6번 키) <span id="food-buy-count" class="text-[10px] text-amber-300 font-normal">(이번 레벨 0/10회)</span></div>
-                            <div class="text-[11px] text-orange-100/80">HP/MP 200 회복 + 최대 HP 영구 +30 증가! (한 레벨당 최대 10번 섭취)</div>
+                            <div id="food-desc-text" class="text-[11px] text-orange-100/80">HP/MP 200 회복 + 최대 HP 영구 +30 증가! (한 레벨당 최대 10번 섭취)</div>
                         </div>
                     </div>
                     <button onclick="buyItem('food')" class="game-btn px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0">
@@ -767,20 +916,41 @@
                     </button>
                 </div>
 
-                <!-- Mana Potion -->
-                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-700">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 rounded-lg bg-sky-500/20 border border-sky-500 flex items-center justify-center text-sky-400">
-                            <i class="fa-solid fa-prescription-bottle"></i>
+                <!-- 5-Tier MP Potions -->
+                <div class="p-2.5 rounded-xl bg-sky-950/40 border border-sky-500/60">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="font-bold text-xs sm:text-sm text-sky-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-prescription-bottle text-sky-400"></i> 단계별 마나 회복 물약 (4번 키)
                         </div>
-                        <div>
-                            <div class="font-bold text-xs sm:text-sm text-sky-300">고농축 마나 물약 (4번 키)</div>
-                            <div class="text-[11px] text-slate-400">마나(MP)를 즉시 140 회복합니다.</div>
-                        </div>
+                        <span id="selected-mp-tier-label" class="text-[10px] font-bold text-amber-300">[현재 장착: +100 MP]</span>
                     </div>
-                    <button onclick="buyItem('mp')" class="game-btn px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0">
-                        <i class="fa-solid fa-coins text-amber-300"></i> <span id="cost-mp">20</span> G
-                    </button>
+                    <div class="grid grid-cols-5 gap-1.5">
+                        <button onclick="buyMpPotion(100)" class="game-btn py-1.5 px-1 rounded-lg text-[11px] font-bold flex flex-col items-center">
+                            <span class="text-sky-200">+100 MP</span>
+                            <span class="text-amber-300 font-black"><span id="cost-mp-100">0</span> G</span>
+                            <span id="inv-mp-100" class="text-[9px] text-white">x0</span>
+                        </button>
+                        <button onclick="buyMpPotion(200)" class="game-btn py-1.5 px-1 rounded-lg text-[11px] font-bold flex flex-col items-center">
+                            <span class="text-sky-200">+200 MP</span>
+                            <span class="text-amber-300 font-black"><span id="cost-mp-200">0</span> G</span>
+                            <span id="inv-mp-200" class="text-[9px] text-white">x0</span>
+                        </button>
+                        <button onclick="buyMpPotion(300)" class="game-btn py-1.5 px-1 rounded-lg text-[11px] font-bold flex flex-col items-center">
+                            <span class="text-sky-200">+300 MP</span>
+                            <span class="text-amber-300 font-black"><span id="cost-mp-300">0</span> G</span>
+                            <span id="inv-mp-300" class="text-[9px] text-white">x0</span>
+                        </button>
+                        <button onclick="buyMpPotion(400)" class="game-btn py-1.5 px-1 rounded-lg text-[11px] font-bold flex flex-col items-center">
+                            <span class="text-sky-200">+400 MP</span>
+                            <span class="text-amber-300 font-black"><span id="cost-mp-400">0</span> G</span>
+                            <span id="inv-mp-400" class="text-[9px] text-white">x0</span>
+                        </button>
+                        <button onclick="buyMpPotion(500)" class="game-btn py-1.5 px-1 rounded-lg text-[11px] font-bold flex flex-col items-center">
+                            <span class="text-sky-200">+500 MP</span>
+                            <span class="text-amber-300 font-black"><span id="cost-mp-500">0</span> G</span>
+                            <span id="inv-mp-500" class="text-[9px] text-white">x0</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Super Awakening Potion -->
@@ -807,7 +977,7 @@
                         </div>
                         <div>
                             <div class="font-bold text-xs sm:text-sm text-purple-300">지팡이 강화 <span id="staff-lv-text" class="text-xs text-amber-300">(+0)</span></div>
-                            <div class="text-[11px] text-purple-200/80">기본 마법 공격력 +16 영구 상승.</div>
+                            <div id="staff-desc-text" class="text-[11px] text-purple-200/80">기본 마법 공격력 +16 영구 상승.</div>
                         </div>
                     </div>
                     <button onclick="buyItem('staff')" id="btn-buy-staff" class="game-btn px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0">
@@ -1696,7 +1866,9 @@
             const useTax = player.foodUsedThisLevel * (20 + lv * 8);
             return Math.floor(levelBase + useTax);
         } else if (type === 'staff') {
-            return Math.floor(player.staffCost * (1 + (lv - 1) * 0.22));
+            const staffBase = 85 + (lv - 1) * 145 + Math.pow(Math.max(0, lv - 5), 1.35) * 40;
+            const staffTax = (player.staffBoughtThisLevel || 0) * (20 + lv * 8);
+            return Math.floor(staffBase + staffTax);
         }
         return 100;
     }
@@ -2230,7 +2402,16 @@
 
     function spawnMonster(type, customX, customY) {
         const data = createMonsterData(type);
+        if (mpRole === 'client') return; // 방장이 아니면 몬스터를 직접 만들지 않음
         if (typeof data.goldValue === 'number') data.goldValue = Math.round(data.goldValue * 1.2); // 골드 1.2배
+        if (BOSS_GOLD[data.type]) {
+            data.goldValue = BOSS_GOLD[data.type];
+        } else {
+            const strengthMul = 1 + (data.level || 1) / 20; // 강한 몬스터일수록 보상 증가
+            if (typeof data.goldValue === 'number') data.goldValue = Math.round(data.goldValue * strengthMul);
+            if (typeof data.expValue === 'number') data.expValue = Math.round(data.expValue * strengthMul);
+        }
+        data.nid = mpNewNid();
         if (customX !== undefined) data.x = customX;
         if (customY !== undefined) data.y = customY;
         if (data.homeX === undefined) data.homeX = data.x;
@@ -3386,12 +3567,26 @@
         updateHUD();
     }
 
-    function damageMonster(m, index, dmg) {
+    function damageMonster(m, index, dmg, frz, attackerUid) {
         if (!m) return;
+        dmg = Math.max(0, Math.round(dmg));
+        // 방장이 아닌 사람: 방장에게 "때렸다"고 알리고, 화면에는 바로 보여줌
+        if (mpRole === 'client') {
+            if (window.MPNet && m.nid) window.MPNet.queueHit(m.nid, dmg, frz || 0);
+            m._localHitAt = Date.now();
+            m.hp = Math.max(1, m.hp - dmg);
+            m.hitFlash = 6;
+            addFloatingText(m.x, m.y - 28, `-${dmg}`, '#fde047');
+            playSound('hit');
+            for (let i = 0; i < 5; i++) {
+                particles.push({ x: m.x, y: m.y - 10, vx: (Math.random() - 0.5) * 4.5, vy: (Math.random() - 0.5) * 4.5, size: 4, color: '#fbbf24', life: 16 });
+            }
+            return;
+        }
         m.hp -= dmg;
         m.hitFlash = 6;
-        addFloatingText(m.x, m.y - 28, `-${dmg}`, '#fde047');
-        playSound('hit');
+        addFloatingText(m.x, m.y - 28, `-${dmg}`, (!attackerUid || attackerUid === window.cloudUserId) ? '#fde047' : '#bae6fd');
+        if (!attackerUid || attackerUid === window.cloudUserId) playSound('hit');
 
         for (let i = 0; i < 5; i++) {
             particles.push({
@@ -3402,60 +3597,22 @@
         }
 
         if (m.hp <= 0) {
+            const idx = monsters.indexOf(m);
+            if (idx === -1) return;
             const deadType = m.spawnKey || m.type;
-            const deadX = m.x, deadY = m.y;
             const respawnHomeX = m.homeX;
-            player.kills++;
-            player.exp += m.expValue;
+            const info = { nid: m.nid || '', type: deadType, dex: m.type, name: m.name, x: Math.round(m.x), y: Math.round(m.y), exp: m.expValue || 0, killer: attackerUid || window.cloudUserId };
 
-            if (!player.pokedex) player.pokedex = {};
-            const dexKey = m.type;
-            const isFirstCatch = !player.pokedex[dexKey];
-            player.pokedex[dexKey] = (player.pokedex[dexKey] || 0) + 1;
-            if (isFirstCatch) {
-                addFloatingText(deadX, deadY - 52, `📖 몬스터 도감 신규 등록! [${m.name}]`, '#38bdf8');
-            }
-
-            lootDrops.push({ x: deadX, y: deadY, gold: m.goldValue, isLifeHeart: false, isGoldBar: false, life: 540 });
-
-            if (player.kills > 0 && player.kills % 400 === 0) {
-                const goldBarValue = 700 + Math.floor(Math.random() * 250);
-                lootDrops.push({ x: deadX - 24, y: deadY - 12, gold: goldBarValue, isLifeHeart: false, isGoldBar: true, life: 720 });
-                addFloatingText(deadX, deadY - 95, `🪙 ${player.kills}처치 달성! 황금 금괴(${goldBarValue}G) 출현!!`, "#fde047");
-                playSound('levelup');
-            }
-
-            if (!player.nextLifeStoneKillTarget || player.nextLifeStoneKillTarget < player.kills) {
-                player.nextLifeStoneKillTarget = player.kills + Math.floor(Math.random() * 45) + 15;
-            }
-            if (player.kills >= player.nextLifeStoneKillTarget) {
-                lootDrops.push({ x: deadX + 20, y: deadY - 10, gold: 0, isLifeHeart: true, isGoldBar: false, life: 900 });
-                addFloatingText(deadX, deadY - 75, `💖 ${player.kills}킬 달성! 생명석(목숨+1) 출현!!`, "#f43f5e");
-                playSound('levelup');
-                player.nextLifeStoneKillTarget = player.kills + 300 + Math.floor(Math.random() * 101);
-            }
-
-            monsters.splice(index, 1);
-
-            if (player.exp >= player.maxExp) {
-                while (player.exp >= player.maxExp) {
-                    player.exp -= player.maxExp;
-                    player.level++;
-                    player.foodUsedThisLevel = 0;
-                    const gains = getLevelUpStatsGain(player.level);
-                    player.maxExp = Math.max(400, Math.floor(player.maxExp * 1.55 + 320));
-                    player.maxHp += gains.hp; player.hp = player.maxHp;
-                    player.maxMp += gains.mp; player.mp = player.maxMp;
-                    player.atk += 18;
-                    playSound('levelup');
-                    addFloatingText(player.x, player.y - 60, `🎉 LEVEL UP! Lv.${player.level} (HP+${gains.hp}/MP+${gains.mp})`, '#fde047');
-                }
-            }
+            monsters.splice(idx, 1);
+            mpAddLoot({ x: info.x, y: info.y, gold: m.goldValue, isLifeHeart: false, isGoldBar: false, life: 540 });
 
             if (!m.isMinion) {
                 const isBossMob = deadType.startsWith('boss');
                 const respawnDelay = Math.round((isBossMob ? 25000 : (16000 + Math.floor(Math.random() * 3000))) * 0.75); // 리젠 25% 단축
+                mpPendingRespawn[deadType] = (mpPendingRespawn[deadType] || 0) + 1;
                 setTimeout(() => {
+                    mpPendingRespawn[deadType] = Math.max(0, (mpPendingRespawn[deadType] || 0) - 1);
+                    if (mpRole === 'client') return; // 그 사이 방장이 바뀌었으면 새 방장이 채움
                     if (isBossMob) {
                         spawnMonster(deadType);
                     } else if (respawnHomeX !== undefined && respawnHomeX > 8600 && (deadType === 'soldier_ant' || deadType === 'arachne_spider' || deadType === 'iron_stag_beetle')) {
@@ -3465,7 +3622,111 @@
                     }
                 }, respawnDelay);
             }
+            if (mpRole === 'host') mpQueueFx('kill', info);
+            applyKillReward(info);
         }
+    }
+
+    // 몬스터 처치 보상 (파티: 처치 지점 근처에 있던 사람 모두)
+    const PARTY_RANGE = 1100;
+    function applyKillReward(info) {
+        if (!info) return;
+        if (mpRole !== 'solo' && info.killer !== window.cloudUserId && Math.hypot(player.x - info.x, player.y - info.y) > PARTY_RANGE) return;
+        const deadX = info.x, deadY = info.y;
+        player.kills++;
+        player.exp += computeKillExp(info.type, info.exp);
+
+        if (!player.pokedex) player.pokedex = {};
+        const dexKey = info.dex || info.type;
+        const isFirstCatch = !player.pokedex[dexKey];
+        player.pokedex[dexKey] = (player.pokedex[dexKey] || 0) + 1;
+        if (isFirstCatch) {
+            addFloatingText(deadX, deadY - 52, `📖 몬스터 도감 신규 등록! [${info.name || dexKey}]`, '#38bdf8');
+        }
+
+        if (player.kills > 0 && player.kills % 400 === 0) {
+            const goldBarValue = 700 + Math.floor(Math.random() * 250);
+            mpAddLoot({ x: deadX - 24, y: deadY - 12, gold: goldBarValue, isLifeHeart: false, isGoldBar: true, life: 720 });
+            addFloatingText(deadX, deadY - 95, `🪙 ${player.kills}처치 달성! 황금 금괴(${goldBarValue}G) 출현!!`, "#fde047");
+            playSound('levelup');
+        }
+
+        if (!player.nextLifeStoneKillTarget || player.nextLifeStoneKillTarget < player.kills) {
+            player.nextLifeStoneKillTarget = player.kills + Math.floor(Math.random() * 45) + 15;
+        }
+        if (player.kills >= player.nextLifeStoneKillTarget) {
+            mpAddLoot({ x: deadX + 20, y: deadY - 10, gold: 0, isLifeHeart: true, isGoldBar: false, life: 900 });
+            addFloatingText(deadX, deadY - 75, `💖 ${player.kills}킬 달성! 생명석(목숨+1) 출현!!`, "#f43f5e");
+            playSound('levelup');
+            player.nextLifeStoneKillTarget = player.kills + 300 + Math.floor(Math.random() * 101);
+        }
+
+        if (player.exp >= player.maxExp) {
+            while (player.exp >= player.maxExp) {
+                player.exp -= player.maxExp;
+                player.level++;
+                player.foodUsedThisLevel = 0;
+                player.staffBoughtThisLevel = 0;
+                const gains = getLevelUpStatsGain(player.level);
+                player.maxExp = Math.max(400, Math.floor(player.maxExp * 1.3 + 320));
+                player.maxHp += gains.hp; player.hp = player.maxHp;
+                player.maxMp += gains.mp; player.mp = player.maxMp;
+                player.atk += 18;
+                playSound('levelup');
+                addFloatingText(player.x, player.y - 60, `🎉 LEVEL UP! Lv.${player.level} (HP+${gains.hp}/MP+${gains.mp})`, '#fde047');
+            }
+        }
+    }
+
+    // ---- 업그레이드 공통 함수 ----
+    const BOSS_GOLD = { boss_orc: 1200, boss_archmage: 2100, boss_dragon: 4200, boss_celestial: 10000, boss_apocalypse: 15000, boss_katydid_1: 40000, boss_katydid_2: 50000 };
+    const BOSS_EXP_FRAC = { boss_orc: 1/8, boss_archmage: 1/6, boss_dragon: 1/5, boss_celestial: 1/4, boss_apocalypse: 3/8, boss_katydid_1: 1/2, boss_katydid_2: 2/3 };
+    function computeKillExp(type, baseExp) {
+        baseExp = Number(baseExp) || 0;
+        const frac0 = BOSS_EXP_FRAC[type];
+        if (!frac0) return baseExp;
+        // 레벨 10 기준 비율, 내 레벨이 5 오를 때마다 절반 (최대 1.5레벨치)
+        const frac = Math.min(1.5, frac0 * Math.pow(2, -(player.level - 10) / 5));
+        return Math.max(baseExp, Math.round(player.maxExp * frac));
+    }
+    function getStaffGain() { return 10 + player.level * 2; }
+    function getFoodHpGain() { return 20 + player.level * 4; }
+    function getMpPotionPrice(tier) {
+        const lv = player.level;
+        const lvScale = 1 + (lv - 1) * 0.24;
+        const basePrices = { 100: 20, 200: 40, 300: 70, 400: 110, 500: 155 };
+        return Math.floor((basePrices[tier] || 20) * lvScale);
+    }
+    function normalizeMpPotions() {
+        // 예전 저장의 마나 물약(1종류)은 +100 마나 물약으로 옮김
+        if (player.potions && player.potions.mp > 0) {
+            player.potions.mp100 = (player.potions.mp100 || 0) + player.potions.mp;
+            player.potions.mp = 0;
+        }
+    }
+    function cycleMpPotionTier() {
+        const tiers = [100, 200, 300, 400, 500];
+        const idx = tiers.indexOf(player.selectedMpTier || 100);
+        player.selectedMpTier = tiers[(idx + 1) % tiers.length];
+        addFloatingText(player.x, player.y - 40, `🧪 4번 키 물약 전환: +${player.selectedMpTier} MP`, "#38bdf8");
+        playSound('potion');
+        updateHUD();
+    }
+    function buyMpPotion(tier) {
+        const msgEl = document.getElementById('shop-message');
+        const cost = getMpPotionPrice(tier);
+        if (player.gold < cost) {
+            msgEl.textContent = `골드가 부족합니다! (+${tier} MP 물약 필요: ${cost} G / 잔여: ${player.gold.toLocaleString()} G)`;
+            msgEl.className = "mt-2 text-center text-xs font-bold text-rose-400 h-4";
+            return;
+        }
+        player.gold -= cost;
+        player.potions[`mp${tier}`] = (player.potions[`mp${tier}`] || 0) + 1;
+        player.selectedMpTier = tier;
+        msgEl.textContent = `+${tier} MP 회복 물약 구매 완료! (잔여 골드: ${player.gold.toLocaleString()} G)`;
+        msgEl.className = "mt-2 text-center text-xs font-bold text-emerald-400 h-4";
+        playSound('potion');
+        updateHUD();
     }
 
     function cycleHpPotionTier() {
@@ -3509,10 +3770,21 @@
             player.potions[`hp${tier}`]--;
             player.hp = Math.min(player.maxHp, player.hp + tier);
             addFloatingText(player.x, player.y - 35, `+${tier} HP 회복!`, "#fb7185");
-        } else if (type === 'mp' && player.potions.mp > 0) {
-            player.potions.mp--;
-            player.mp = Math.min(player.maxMp, player.mp + 140);
-            addFloatingText(player.x, player.y - 35, "+140 MP 회복!", "#38bdf8");
+        } else if (type === 'mp') {
+            normalizeMpPotions();
+            let mTier = player.selectedMpTier || 100;
+            if ((player.potions[`mp${mTier}`] || 0) <= 0) {
+                const foundMp = [100, 200, 300, 400, 500].find(t => (player.potions[`mp${t}`] || 0) > 0);
+                if (!foundMp) {
+                    addFloatingText(player.x, player.y - 35, "보유한 마나 물약이 없습니다! 상점에서 구매하세요!", "#38bdf8");
+                    return;
+                }
+                mTier = foundMp;
+                player.selectedMpTier = foundMp;
+            }
+            player.potions[`mp${mTier}`]--;
+            player.mp = Math.min(player.maxMp, player.mp + mTier);
+            addFloatingText(player.x, player.y - 35, `+${mTier} MP 회복!`, "#38bdf8");
         } else if (type === 'super' && player.potions.super > 0) {
             player.potions.super--;
             player.superBuffTimer = 15.0;
@@ -3524,10 +3796,11 @@
             }
             player.potions.food--;
             player.foodUsedThisLevel++;
-            player.maxHp += 30;
-            player.hp = Math.min(player.maxHp, player.hp + 200);
-            player.mp = Math.min(player.maxMp, player.mp + 200);
-            addFloatingText(player.x, player.y - 45, `🍖 최대 HP +30 & 에너지 회복! (${player.foodUsedThisLevel}/10회)`, "#fb923c");
+            const foodGain = getFoodHpGain();
+            player.maxHp += foodGain;
+            player.hp = Math.min(player.maxHp, player.hp + Math.max(200, Math.round(player.maxHp * 0.3)));
+            player.mp = Math.min(player.maxMp, player.mp + Math.max(200, Math.round(player.maxMp * 0.3)));
+            addFloatingText(player.x, player.y - 45, `🍖 최대 HP +${foodGain} & 에너지 회복! (${player.foodUsedThisLevel}/10회)`, "#fb923c");
         } else if (type === 'boots' && player.potions.boots > 0) {
             if (player.bootsCooldown > 0) {
                 addFloatingText(player.x, player.y - 45, `⏳ 신속의 장화 쿨타임 중! (${player.bootsCooldown.toFixed(1)}초 남음)`, "#2dd4bf");
@@ -3553,6 +3826,11 @@
 
     function buyItem(type) {
         const msgEl = document.getElementById('shop-message');
+        if (type === 'staff' && (player.staffBoughtThisLevel || 0) >= 10) {
+            msgEl.textContent = `⚠️ 이번 레벨에서는 지팡이를 10번 모두 강화했습니다! 레벨업 후 다시 강화하세요.`;
+            msgEl.className = "mt-2 text-center text-xs font-bold text-amber-300 h-4";
+            return;
+        }
         if (type === 'shield' && player.potions.shield >= 5) {
             msgEl.textContent = `⚠️ 성스러운 무적 방패는 최대 5개까지만 구매하여 소지할 수 있습니다! (현재 5/5개 보유 중)`;
             msgEl.className = "mt-2 text-center text-xs font-bold text-amber-300 h-4";
@@ -3574,12 +3852,14 @@
         else if (type === 'food') {
             player.potions.food++;
             player.foodBoughtCount++;
-            msgEl.textContent = `화덕 바비큐 구매 완료! (최대 HP +30) ${remainTxt}`;
+            msgEl.textContent = `화덕 바비큐 구매 완료! (먹으면 최대 HP +${getFoodHpGain()}) ${remainTxt}`;
         } else if (type === 'staff') {
+            const staffGain = getStaffGain();
             player.staffLevel++;
-            player.atk += 16;
-            player.staffCost = Math.floor(player.staffCost * 1.42);
-            msgEl.textContent = `지팡이 +${player.staffLevel} 강화 성공! ${remainTxt}`;
+            player.atk += staffGain;
+            player.staffAtkTotal = (player.staffAtkTotal != null ? player.staffAtkTotal : (player.staffLevel - 1) * 16) + staffGain;
+            player.staffBoughtThisLevel = (player.staffBoughtThisLevel || 0) + 1;
+            msgEl.textContent = `지팡이 +${player.staffLevel} 강화 성공! 공격력 +${staffGain} (이번 레벨 ${player.staffBoughtThisLevel}/10) ${remainTxt}`;
         }
         msgEl.className = "mt-2 text-center text-xs font-bold text-emerald-400 h-4";
         playSound('potion'); updateHUD();
@@ -3638,7 +3918,23 @@
             if (iEl) iEl.textContent = `x${player.potions[`hp${t}`] || 0}`;
         });
 
-        document.getElementById('count-mp').textContent = `x${player.potions.mp}`;
+        normalizeMpPotions();
+        const curMpTier = player.selectedMpTier || 100;
+        const lblMpBtn = document.getElementById('label-mp-btn');
+        if (lblMpBtn) lblMpBtn.textContent = `마나(${curMpTier})`;
+        document.getElementById('count-mp').textContent = `x${player.potions[`mp${curMpTier}`] || 0}`;
+        const selMpLbl = document.getElementById('selected-mp-tier-label');
+        if (selMpLbl) selMpLbl.textContent = `[현재 4번 키 장착: +${curMpTier} MP 물약]`;
+        [100, 200, 300, 400, 500].forEach(t => {
+            const cEl = document.getElementById(`cost-mp-${t}`);
+            if (cEl) cEl.textContent = getMpPotionPrice(t);
+            const iEl = document.getElementById(`inv-mp-${t}`);
+            if (iEl) iEl.textContent = `x${player.potions[`mp${t}`] || 0}`;
+        });
+        const staffDescEl = document.getElementById('staff-desc-text');
+        if (staffDescEl) staffDescEl.textContent = `마법 공격력 +${getStaffGain()} 영구 상승 (레벨이 오를수록 증가 · 이번 레벨 ${player.staffBoughtThisLevel || 0}/10회)`;
+        const foodDescEl = document.getElementById('food-desc-text');
+        if (foodDescEl) foodDescEl.textContent = `HP/MP 최대치의 30% 회복(최소 200) + 최대 HP 영구 +${getFoodHpGain()} (한 레벨당 최대 10번 섭취)`;
         document.getElementById('count-super').textContent = `x${player.potions.super}`;
         document.getElementById('count-food').textContent = `x${player.potions.food}`;
 
@@ -4106,9 +4402,9 @@
             addFloatingText(player.x, player.y - 50, `💔 목숨 1개 감소! (남은 목숨: ${player.lives}개)`, "#fb7185");
         } else {
             player.lives = 3; player.gold = 0; player.level = 1; player.exp = 0; player.maxExp = 750;
-            player.kills = 0; player.foodUsedThisLevel = 0;
+            player.kills = 0; player.foodUsedThisLevel = 0; player.staffBoughtThisLevel = 0;
             player.maxHp = 220; player.hp = 220; player.maxMp = 150; player.mp = 150;
-            player.atk = 38 + player.staffLevel * 12; player.x = 772; player.y = BRIDGE_Y;
+            player.atk = 38 + (player.staffAtkTotal != null ? player.staffAtkTotal : player.staffLevel * 12); player.x = 772; player.y = BRIDGE_Y;
             player.invincibleTimer = 90;
             addFloatingText(player.x, player.y - 55, "💀 모든 목숨 소진! 골드·레벨·처치수가 초기화되었습니다!", "#f43f5e");
         }
@@ -4195,6 +4491,7 @@
     let lastBroadcastTime = 0;
 
     function updateGame() {
+        mpTick();
         let dx = 0, dy = 0;
         if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
         if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
@@ -4226,8 +4523,8 @@
         }
 
         if (player.x < RIVER_X - 30) {
-            player.hp = Math.min(player.maxHp, player.hp + 0.45);
-            player.mp = Math.min(player.maxMp, player.mp + 0.85);
+            player.hp = Math.min(player.maxHp, player.hp + Math.max(0.45, player.maxHp / 300));
+            player.mp = Math.min(player.maxMp, player.mp + Math.max(0.85, player.maxMp / 300));
         } else {
             player.mp = Math.min(player.maxMp, player.mp + 0.03);
         }
@@ -4309,7 +4606,8 @@
                 petsList: pets.map(pt => ({ type: pt.type, name: pt.name, color: pt.color })),
                 gifts: (typeof window.getMyGifts === 'function') ? window.getMyGifts() : [],
                 lives: player.lives,
-                shieldCnt: (player.potions && player.potions.shield) || 0
+                shieldCnt: (player.potions && player.potions.shield) || 0,
+                shield: player.shieldBuffTimer > 0
             });
         }
 
@@ -4379,25 +4677,28 @@
             }
         }
 
+        if (mpRole !== 'client') {
+        mpProxyTick();
         for (const m of monsters) {
+            const P = mpPickTarget(m);
             if (m.hitFlash > 0) m.hitFlash--;
             if (m.attackCooldown > 0) m.attackCooldown--;
             if (m.stabAnim && m.stabAnim > 0) m.stabAnim--;
             if (m.frozenTimer && m.frozenTimer > 0) { m.frozenTimer = Math.max(0, m.frozenTimer - 1/60); continue; }
 
-            const dist = Math.hypot(player.x - m.x, player.y - m.y);
+            const dist = Math.hypot(P.x - m.x, P.y - m.y);
             const aggroRange = m.isSupremeBoss ? 860 : 540;
             const distFromHome = Math.hypot((m.homeX || m.x) - m.x, (m.homeY || m.y) - m.y);
             const maxLeashDist = m.isSupremeBoss ? 1100 : 720;
 
             const shouldReturnHome =
-                player.x <= RIVER_X + 20 ||
+                P.x <= RIVER_X + 20 ||
                 dist >= aggroRange ||
                 distFromHome > maxLeashDist ||
                 (m.isSupremeBoss && (
-                    player.x < (m.leashMinX || 7050) ||
+                    P.x < (m.leashMinX || 7050) ||
                     m.x < (m.leashMinX || 7050) ||
-                    (m.leashMaxX && (player.x > m.leashMaxX || m.x > m.leashMaxX))
+                    (m.leashMaxX && (P.x > m.leashMaxX || m.x > m.leashMaxX))
                 ));
 
             if (shouldReturnHome) {
@@ -4419,34 +4720,34 @@
                 continue;
             }
 
-            if (player.x > RIVER_X + 20 && dist < aggroRange) {
-                const ang = Math.atan2(player.y - m.y, player.x - m.x);
+            if (P.x > RIVER_X + 20 && dist < aggroRange) {
+                const ang = Math.atan2(P.y - m.y, P.x - m.x);
 
                 if (m.isMosquito) {
-                    if (dist < player.radius + m.radius + 6) {
+                    if (dist < P.radius + m.radius + 6) {
                         if (!m.latched) {
                             m.latched = true;
-                            addFloatingText(player.x, player.y - 46, "🦟 흡혈모기가 몸에 딱 달라붙었습니다!! (처치 전까지 지속 흡혈)", "#f43f5e");
+                            addFloatingText(P.x, P.y - 46, "🦟 흡혈모기가 몸에 딱 달라붙었습니다!! (처치 전까지 지속 흡혈)", "#f43f5e");
                         }
                     }
                     if (m.latched) {
                         m.latchOffsetAngle = (m.latchOffsetAngle || 0) + 0.06;
-                        m.x = player.x + Math.cos(m.latchOffsetAngle) * 16;
-                        m.y = player.y + Math.sin(m.latchOffsetAngle) * 12;
+                        m.x = P.x + Math.cos(m.latchOffsetAngle) * 16;
+                        m.y = P.y + Math.sin(m.latchOffsetAngle) * 12;
                         m.walkFrame += 0.5;
                         m.drainTick = (m.drainTick || 0) + 1;
                         if (m.drainTick >= 34) {
                             m.drainTick = 0;
-                            if (player.shieldBuffTimer > 0) {
-                                addFloatingText(player.x, player.y - 35, "🛡️ 무적 방패로 흡혈 차단!", "#38bdf8");
+                            if (P.shieldBuffTimer > 0) {
+                                addFloatingText(P.x, P.y - 35, "🛡️ 무적 방패로 흡혈 차단!", "#38bdf8");
                             } else {
                                 const drainDmg = m.atk;
-                                player.hp -= drainDmg;
+                                P.hp -= drainDmg;
                                 m.hp = Math.min(m.maxHp, m.hp + Math.floor(drainDmg * 0.5));
-                                screenShake = 8;
-                                addFloatingText(player.x, player.y - 32, `🦟 흡혈 -${drainDmg} HP`, '#f43f5e');
+                                if (!P.isProxy) screenShake = 8;
+                                addFloatingText(P.x, P.y - 32, `🦟 흡혈 -${drainDmg} HP`, '#f43f5e');
                                 playSound('hit');
-                                if (player.hp <= 0) { handlePlayerDeath(); break; }
+                                if (P.hp <= 0) { handlePlayerDeath(); break; }
                             }
                         }
                         continue;
@@ -4468,18 +4769,18 @@
 
                         if (m.jumpTimer === 0) {
                             m.jumpHeight = 0;
-                            screenShake = 15;
+                            if (!P.isProxy) screenShake = 15;
                             playSound('hit');
-                            const landDist = Math.hypot(player.x - m.x, player.y - m.y);
-                            if (landDist < m.radius + player.radius + 45) {
-                                if (player.shieldBuffTimer > 0) {
-                                    addFloatingText(player.x, player.y - 40, "🛡️ 여치 점프 깨물기 방어!", "#38bdf8");
-                                } else if (player.invincibleTimer <= 0) {
+                            const landDist = Math.hypot(P.x - m.x, P.y - m.y);
+                            if (landDist < m.radius + P.radius + 45) {
+                                if (P.shieldBuffTimer > 0) {
+                                    addFloatingText(P.x, P.y - 40, "🛡️ 여치 점프 깨물기 방어!", "#38bdf8");
+                                } else if (P.invincibleTimer <= 0) {
                                     const biteDmg = Math.floor(m.atk * 1.18);
-                                    player.hp -= biteDmg;
-                                    player.invincibleTimer = 34;
-                                    addFloatingText(player.x, player.y - 45, `🦗 여치 강철턱 깨물기!! (-${biteDmg})`, "#f43f5e");
-                                    if (player.hp <= 0) { handlePlayerDeath(); break; }
+                                    P.hp -= biteDmg;
+                                    P.invincibleTimer = 34;
+                                    addFloatingText(P.x, P.y - 45, `🦗 여치 강철턱 깨물기!! (-${biteDmg})`, "#f43f5e");
+                                    if (P.hp <= 0) { handlePlayerDeath(); break; }
                                 }
                             }
                         }
@@ -4497,8 +4798,8 @@
                             m.jumpCooldown = m.type === 'boss_katydid_2' ? 75 : 90;
                             m.jumpStartX = m.x;
                             m.jumpStartY = m.y;
-                            m.jumpTargetX = Math.max(m.leashMinX || 8550, Math.min(WORLD_WIDTH - 90, player.x + (Math.random() - 0.5) * 40));
-                            m.jumpTargetY = Math.max(100, Math.min(WORLD_HEIGHT - 100, player.y + (Math.random() - 0.5) * 40));
+                            m.jumpTargetX = Math.max(m.leashMinX || 8550, Math.min(WORLD_WIDTH - 90, P.x + (Math.random() - 0.5) * 40));
+                            m.jumpTargetY = Math.max(100, Math.min(WORLD_HEIGHT - 100, P.y + (Math.random() - 0.5) * 40));
                             addFloatingText(m.x, m.y - 95, "🦗 여치 보스 고공 점프 회피 & 급습!!", "#a3e635");
                             playSound('nova');
                         }
@@ -4511,7 +4812,7 @@
                             for (let w = 0; w < waveCnt; w++) {
                                 const off = (w - (waveCnt - 1) / 2) * 0.22;
                                 const fAng = ang + off;
-                                enemyProjectiles.push({
+                                mpSpawnEnemyProj({
                                     x: m.x, y: m.y - 14,
                                     vx: Math.cos(fAng) * m.rangedSpeed,
                                     vy: Math.sin(fAng) * m.rangedSpeed,
@@ -4558,20 +4859,20 @@
                     m.walkFrame += 0.2;
                 }
 
-                if ((!m.jumpTimer || m.jumpTimer <= 0) && dist < player.radius + m.radius && player.invincibleTimer <= 0 && m.attackCooldown <= 0) {
+                if ((!m.jumpTimer || m.jumpTimer <= 0) && dist < P.radius + m.radius && P.invincibleTimer <= 0 && m.attackCooldown <= 0) {
                     if (m.type === 'ice_golem') m.stabAnim = 24;
-                    if (player.shieldBuffTimer > 0) {
+                    if (P.shieldBuffTimer > 0) {
                         m.attackCooldown = 45;
-                        addFloatingText(player.x, player.y - 35, "🛡️ 무적 방어!", "#38bdf8");
+                        addFloatingText(P.x, P.y - 35, "🛡️ 무적 방어!", "#38bdf8");
                     } else {
                         const hitDmg = m.isKatydidBoss ? Math.floor(m.atk * 1.15) : ((m.isCharger && m.chargeTimer > 0) ? Math.floor(m.atk * 1.35) : m.atk);
-                        player.hp -= hitDmg;
-                        player.invincibleTimer = 32;
+                        P.hp -= hitDmg;
+                        P.invincibleTimer = 32;
                         m.attackCooldown = 45;
-                        screenShake = 14;
-                        addFloatingText(player.x, player.y - 32, m.isKatydidBoss ? `🦗 강철턱 깨물기! -${hitDmg}` : (m.type === 'ice_golem' ? `❄️ 고드름 창 찌르기! -${hitDmg}` : `-${hitDmg}`), '#f43f5e');
+                        if (!P.isProxy) screenShake = 14;
+                        addFloatingText(P.x, P.y - 32, m.isKatydidBoss ? `🦗 강철턱 깨물기! -${hitDmg}` : (m.type === 'ice_golem' ? `❄️ 고드름 창 찌르기! -${hitDmg}` : `-${hitDmg}`), '#f43f5e');
                         playSound('hit');
-                        if (player.hp <= 0) { handlePlayerDeath(); break; }
+                        if (P.hp <= 0) { handlePlayerDeath(); break; }
                     }
                 }
 
@@ -4584,7 +4885,7 @@
                         for (let k = 0; k < count; k++) {
                             const offset = (k - (count - 1) / 2) * spread;
                             const fireAng = ang + offset;
-                            enemyProjectiles.push({
+                            mpSpawnEnemyProj({
                                 x: m.x, y: m.y - 10,
                                 vx: Math.cos(fireAng) * m.rangedSpeed,
                                 vy: Math.sin(fireAng) * m.rangedSpeed,
@@ -4608,7 +4909,7 @@
                             m.burstDelay = 7;
                             for (let b = -1; b <= 1; b++) {
                                 const bAng = ang + b * 0.14;
-                                enemyProjectiles.push({
+                                mpSpawnEnemyProj({
                                     x: m.x, y: m.y - 10,
                                     vx: Math.cos(bAng) * (m.rangedSpeed + 1.8),
                                     vy: Math.sin(bAng) * (m.rangedSpeed + 1.8),
@@ -4627,18 +4928,18 @@
                     if (m.lightningTimer <= 0) {
                         m.lightningTimer = m.type === 'boss_apocalypse' ? 85 : 105;
                         for (let l = 0; l < 3; l++) {
-                            const strikeX = l === 0 ? player.x : player.x + (Math.random() - 0.5) * 220;
-                            const strikeY = l === 0 ? player.y : player.y + (Math.random() - 0.5) * 220;
-                            createLightningBolt(strikeX, strikeY, m.type === 'boss_apocalypse' ? '#f43f5e' : '#fde047');
+                            const strikeX = l === 0 ? P.x : P.x + (Math.random() - 0.5) * 220;
+                            const strikeY = l === 0 ? P.y : P.y + (Math.random() - 0.5) * 220;
+                            mpLightning(strikeX, strikeY, m.type === 'boss_apocalypse' ? '#f43f5e' : '#fde047');
                         }
                         playSound('thunder');
-                        screenShake = 12;
-                        if (dist < 620 && player.invincibleTimer <= 0 && player.shieldBuffTimer <= 0) {
+                        if (!P.isProxy) screenShake = 12;
+                        if (dist < 620 && P.invincibleTimer <= 0 && P.shieldBuffTimer <= 0) {
                             const lDmg = Math.floor(m.atk * 0.7);
-                            player.hp -= lDmg;
-                            player.invincibleTimer = 28;
-                            addFloatingText(player.x, player.y - 45, `⚡ 여왕벌 독침뇌전 직격! (-${lDmg})`, "#f43f5e");
-                            if (player.hp <= 0) { handlePlayerDeath(); break; }
+                            P.hp -= lDmg;
+                            P.invincibleTimer = 28;
+                            addFloatingText(P.x, P.y - 45, `⚡ 여왕벌 독침뇌전 직격! (-${lDmg})`, "#f43f5e");
+                            if (P.hp <= 0) { handlePlayerDeath(); break; }
                         }
                     }
 
@@ -4660,6 +4961,10 @@
             }
         }
 
+        } else {
+            mpClientAnimateMonsters();
+        }
+
         for (let i = projectiles.length - 1; i >= 0; i--) {
             const proj = projectiles[i];
             proj.x += proj.vx; proj.y += proj.vy; proj.life--;
@@ -4673,7 +4978,7 @@
                     continue;
                 }
                 if (Math.hypot(proj.x - m.x, proj.y - (m.y - 8)) < proj.radius + m.radius + 12) {
-                    if (proj.freezeDuration && proj.freezeDuration > 0) {
+                    if (mpRole !== 'client' && proj.freezeDuration && proj.freezeDuration > 0) {
                         if (m.isSupremeBoss) {
                             const dodgeAng = Math.random() * Math.PI * 2;
                             m.x = Math.max(RIVER_X + 100, Math.min(WORLD_WIDTH - 80, m.x + Math.cos(dodgeAng) * 45));
@@ -4695,7 +5000,7 @@
                             addFloatingText(player.x, player.y - 26, `+${healHp} HP`, '#34d399');
                         }
                     }
-                    damageMonster(m, j, proj.damage);
+                    damageMonster(m, j, proj.damage, proj.freezeDuration || 0);
                     hit = true;
                     break;
                 }
@@ -4746,20 +5051,12 @@
                 item.y += (player.y - item.y) * 0.22;
             }
             if (dist < 26) {
-                if (item.isLifeHeart) {
-                    player.lives = Math.min(player.maxLives, player.lives + 1);
-                    addFloatingText(player.x, player.y - 45, `❤️ 목숨 +1 획득!! (${player.lives}/10)`, "#f43f5e");
-                    playSound('levelup');
-                } else if (item.isGoldBar) {
-                    player.gold += item.gold;
-                    addFloatingText(player.x, player.y - 42, `🪙 황금 금괴 획득!! +${item.gold} G`, '#fde047');
-                    playSound('levelup');
-                } else {
-                    player.gold += item.gold;
-                    addFloatingText(player.x, player.y - 30, `+${item.gold} G`, '#fde047');
-                    playSound('potion');
-                }
                 lootDrops.splice(i, 1);
+                if (item.key && window.MPNet && mpRole !== 'solo') {
+                    window.MPNet.lootClaim(item.key).then(ok => { if (ok) mpGiveLoot(item); });
+                } else {
+                    mpGiveLoot(item);
+                }
                 continue;
             }
         }
@@ -5254,6 +5551,334 @@
     };
 
 
+    // =========================================================================
+    // 몬스터·드롭 함께 쓰기 (방장 = 몬스터를 계산해서 모두에게 보내는 사람)
+    // =========================================================================
+    let mpRole = 'solo';          // 'solo' 혼자 / 'host' 방장 / 'client' 방장 아님
+    let mpMonSeq = 0;
+    const mpPendingRespawn = {};
+    let MON_TARGET = null;
+    const mpProxies = {};
+    let mpMirror = {};
+    let mpLastMonSent = {};
+    let mpLastFull = 0, mpLastSend = 0, mpLastPop = 0, mpLastLootClean = 0;
+    let mpFxQueue = {};
+    const mpFxSeen = new Set();
+    let mpFxSeq = 0;
+    const mpFxExpire = [];
+
+    function mpSeededRandom(seed) {
+        let a = seed >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+    function mpNewNid() { return 'm' + (++mpMonSeq).toString(36) + String(window.cloudUserId || 's').slice(-3); }
+    function mpInitTargets() {
+        MON_TARGET = {};
+        for (const m of monsters) {
+            if (m.isMinion) continue;
+            const k = m.spawnKey || m.type;
+            MON_TARGET[k] = (MON_TARGET[k] || 0) + 1;
+        }
+    }
+    function mpPopulationCheck() {
+        if (!MON_TARGET) return;
+        const cnt = {};
+        for (const m of monsters) { if (m.isMinion) continue; const k = m.spawnKey || m.type; cnt[k] = (cnt[k] || 0) + 1; }
+        for (const k in MON_TARGET) {
+            const missing = MON_TARGET[k] - (cnt[k] || 0) - (mpPendingRespawn[k] || 0);
+            for (let i = 0; i < missing; i++) spawnMonster(k);
+        }
+    }
+
+    function mpSerialize(m) {
+        const bits = '' + (m.frozenTimer > 0 ? 1 : 0) + (m.chargeTimer > 0 ? 1 : 0) + (m.chargeWindup > 0 ? 1 : 0) +
+            ((m.stabAnim || 0) > 0 ? 1 : 0) + ((m.wingFlapAnim || 0) > 0 ? 1 : 0) + (m.latched ? 1 : 0) + ((m.hitFlash || 0) > 0 ? 1 : 0);
+        return [m.type, Math.round(m.x), Math.round(m.y), Math.max(0, Math.round(m.hp)),
+            Math.round(m.homeX || m.x), Math.round(m.homeY || m.y), bits, Math.round(m.jumpHeight || 0),
+            m.chargeTimer > 0 ? Math.round((m.chargeAngle || 0) * 100) / 100 : 0, m.spawnKey || ''].join('|');
+    }
+
+    function mpQueueFx(k, data) {
+        if (mpRole !== 'host') return;
+        const id = 'f' + (++mpFxSeq).toString(36) + String(window.cloudUserId || '').slice(-3);
+        const d = Object.assign({}, data, { k: k, t: window.serverNow ? window.serverNow() : Date.now() });
+        mpFxQueue[id] = JSON.parse(JSON.stringify(d));
+        mpFxSeen.add(id);
+        mpFxExpire.push([id, Date.now() + 3000]);
+    }
+
+    function mpHostSend(now) {
+        const net = window.MPNet;
+        const cur = {};
+        for (const m of monsters) { if (!m.nid) m.nid = mpNewNid(); cur[m.nid] = mpSerialize(m); }
+        if (now - mpLastFull > 30000) {
+            net.monFull(cur);
+            mpLastFull = now;
+        } else {
+            const diff = {};
+            let n = 0;
+            for (const k in cur) if (mpLastMonSent[k] !== cur[k]) { diff[k] = cur[k]; n++; }
+            for (const k in mpLastMonSent) if (!(k in cur)) { diff[k] = null; n++; }
+            if (n) net.monDiff(diff);
+        }
+        mpLastMonSent = cur;
+        while (mpFxExpire.length && mpFxExpire[0][1] < Date.now()) { mpFxQueue[mpFxExpire.shift()[0]] = null; }
+        if (Object.keys(mpFxQueue).length) { net.fxAdd(mpFxQueue); mpFxQueue = {}; }
+    }
+
+    function mpSpawnEnemyProj(o) {
+        enemyProjectiles.push(o);
+        if (mpRole === 'host') {
+            mpQueueFx('ep', { x: Math.round(o.x), y: Math.round(o.y), vx: Math.round(o.vx * 100) / 100, vy: Math.round(o.vy * 100) / 100,
+                r: o.radius, d: o.damage, c: o.color || '#f43f5e', w: o.isWebNet ? 1 : 0, l: o.life });
+        }
+    }
+    function mpLightning(x, y, c) {
+        createLightningBolt(x, y, c);
+        if (mpRole === 'host') mpQueueFx('lb', { x: Math.round(x), y: Math.round(y), c: c });
+    }
+
+    // 다른 플레이어를 몬스터가 쫓을 때 쓰는 "대리 목표". 데미지는 그 사람에게 전달됨
+    function mpGetProxy(uid, rp) {
+        let p = mpProxies[uid];
+        if (!p) {
+            p = {
+                isProxy: true, uid: uid, radius: 19, invincibleTimer: 0, webbedTimer: 0, maxHp: 1e9,
+                get hp() { return 1e9; },
+                set hp(v) { const d = Math.round(1e9 - v); if (d > 0) mpQueueFx('dm', { u: uid, d: d }); }
+            };
+            mpProxies[uid] = p;
+        }
+        p.x = rp.x; p.y = rp.y;
+        p.shieldBuffTimer = rp.shield ? 1 : 0;
+        return p;
+    }
+    function mpPickTarget(m) {
+        if (mpRole !== 'host') return player;
+        let best = player;
+        let bestD = player.x > RIVER_X + 20 ? Math.hypot(player.x - m.x, player.y - m.y) : Infinity;
+        const map = window.remotePlayersMap || {};
+        for (const uid in map) {
+            if (uid === window.cloudUserId) continue;
+            const rp = map[uid];
+            if (!rp || rp.away || typeof rp.x !== 'number' || rp.x <= RIVER_X + 20) continue;
+            const d = Math.hypot(rp.x - m.x, rp.y - m.y);
+            if (d < bestD) { bestD = d; best = mpGetProxy(uid, rp); }
+        }
+        return best;
+    }
+    function mpProxyTick() {
+        for (const k in mpProxies) { if (mpProxies[k].invincibleTimer > 0) mpProxies[k].invincibleTimer--; }
+    }
+
+    // 방장이 아닐 때: 받은 몬스터 위치로 부드럽게 이동하며 그리기
+    function mpClientAnimateMonsters() {
+        for (const m of monsters) {
+            if (m._tx !== undefined) {
+                const dx = m._tx - m.x, dy = m._ty - m.y;
+                if (Math.abs(dx) > 400 || Math.abs(dy) > 400) { m.x = m._tx; m.y = m._ty; }
+                else { m.x += dx * 0.3; m.y += dy * 0.3; }
+                if (Math.abs(dx) + Math.abs(dy) > 0.6) m.walkFrame = (m.walkFrame || 0) + 0.22;
+            }
+            if (m.hitFlash > 0) m.hitFlash--;
+        }
+    }
+    function mpMonSet(key, val) {
+        if (mpRole !== 'client' || typeof val !== 'string') return;
+        const a = val.split('|');
+        const ctype = a[9] || a[0];
+        let m = mpMirror[key];
+        if (!m) {
+            let d = null;
+            try { d = createMonsterData(ctype); } catch (e) { d = null; }
+            if (!d) return;
+            d.nid = key; d.walkFrame = Math.random() * 10; d.hitFlash = 0; d.frozenTimer = 0; d.attackCooldown = 0; d.rangedTimer = 0;
+            d.x = +a[1]; d.y = +a[2];
+            m = d;
+            monsters.push(m);
+            mpMirror[key] = m;
+        }
+        m._tx = +a[1]; m._ty = +a[2];
+        m.homeX = +a[4]; m.homeY = +a[5];
+        const hostHp = +a[3];
+        m.hp = (Date.now() - (m._localHitAt || 0) < 700) ? Math.min(m.hp, hostHp) : hostHp;
+        const b = a[6] || '0000000';
+        m.frozenTimer = b[0] === '1' ? 1 : 0;
+        m.chargeTimer = b[1] === '1' ? 1 : 0;
+        m.chargeWindup = b[2] === '1' ? 1 : 0;
+        m.stabAnim = b[3] === '1' ? 12 : 0;
+        m.wingFlapAnim = b[4] === '1' ? 14 : 0;
+        m.latched = b[5] === '1';
+        if (b[6] === '1') m.hitFlash = Math.max(m.hitFlash || 0, 4);
+        m.jumpHeight = +a[7] || 0;
+        m.jumpTimer = m.jumpHeight > 0 ? 1 : 0;
+        m.chargeAngle = +a[8] || 0;
+    }
+    function mpMonDel(key) {
+        if (mpRole !== 'client') return;
+        const m = mpMirror[key];
+        if (!m) return;
+        const i = monsters.indexOf(m);
+        if (i >= 0) monsters.splice(i, 1);
+        delete mpMirror[key];
+    }
+
+    // 방장이 받은 "다른 사람의 공격"
+    function mpOnHits(pkt) {
+        if (mpRole !== 'host' || !pkt) return;
+        if (window.serverNow() - (pkt.t || 0) > 5000) return;
+        const list = Array.isArray(pkt.h) ? pkt.h : Object.values(pkt.h || {});
+        const byNid = {};
+        for (const m of monsters) if (m.nid) byNid[m.nid] = m;
+        for (const raw of list) {
+            const h = Array.isArray(raw) ? raw : Object.values(raw || {});
+            const m = byNid[h[0]];
+            if (!m || m.hp <= 0 || monsters.indexOf(m) === -1) continue;
+            const d = Number(h[1]) || 0, f = Number(h[2]) || 0;
+            if (f > 0) {
+                if (m.isSupremeBoss) {
+                    const dodgeAng = Math.random() * Math.PI * 2;
+                    m.x = Math.max(RIVER_X + 100, Math.min(WORLD_WIDTH - 80, m.x + Math.cos(dodgeAng) * 45));
+                    m.y = Math.max(90, Math.min(WORLD_HEIGHT - 90, m.y + Math.sin(dodgeAng) * 45));
+                } else {
+                    m.frozenTimer = f;
+                }
+            }
+            damageMonster(m, monsters.indexOf(m), d, 0, pkt.u);
+        }
+    }
+
+    // 방장이 보낸 사건 처리 (모두)
+    function mpTakeDamage(dmg) {
+        if (player.shieldBuffTimer > 0) { addFloatingText(player.x, player.y - 35, "🛡️ 무적 방어!", "#38bdf8"); return; }
+        player.hp -= dmg;
+        player.invincibleTimer = Math.max(player.invincibleTimer, 25);
+        screenShake = 12;
+        addFloatingText(player.x, player.y - 32, `-${dmg}`, '#f43f5e');
+        playSound('hit');
+        if (player.hp <= 0) handlePlayerDeath();
+    }
+    function mpOnFx(key, d) {
+        if (!d || mpFxSeen.has(key)) return;
+        mpFxSeen.add(key);
+        if (window.serverNow() - (d.t || 0) > 4000) return;
+        if (d.k === 'ep') {
+            const frames = Math.min(8, Math.max(0, (window.serverNow() - d.t) / 16.7));
+            enemyProjectiles.push({ x: d.x + d.vx * frames, y: d.y + d.vy * frames, vx: d.vx, vy: d.vy, radius: d.r, damage: d.d, color: d.c, isWebNet: !!d.w, life: Math.max(1, d.l - frames) });
+        } else if (d.k === 'lb') {
+            createLightningBolt(d.x, d.y, d.c);
+        } else if (d.k === 'dm') {
+            if (d.u === window.cloudUserId) mpTakeDamage(Number(d.d) || 0);
+        } else if (d.k === 'kill') {
+            if (mpRole === 'client') mpMonDel(d.nid);
+            applyKillReward(d);
+            updateHUD();
+        }
+    }
+
+    // 드롭 아이템
+    function mpAddLoot(item) {
+        const net = window.MPNet;
+        if (mpRole !== 'solo' && net && net.ready()) {
+            net.lootAdd({ x: Math.round(item.x), y: Math.round(item.y), g: item.gold || 0, lh: item.isLifeHeart ? 1 : 0, gb: item.isGoldBar ? 1 : 0, e: Math.round(window.serverNow() + item.life * 16.7) });
+        } else {
+            lootDrops.push(item);
+        }
+    }
+    function mpLootAdd(key, d) {
+        if (!d || lootDrops.some(it => it.key === key)) return;
+        const remainMs = (d.e || 0) - window.serverNow();
+        if (remainMs <= 0) return;
+        lootDrops.push({ key: key, x: d.x, y: d.y, gold: d.g || 0, isLifeHeart: !!d.lh, isGoldBar: !!d.gb, life: Math.round(remainMs / 16.7) });
+    }
+    function mpLootDel(key) {
+        const i = lootDrops.findIndex(it => it.key === key);
+        if (i >= 0) lootDrops.splice(i, 1);
+    }
+    function mpGiveLoot(item) {
+        if (item.isLifeHeart) {
+            player.lives = Math.min(player.maxLives, player.lives + 1);
+            addFloatingText(player.x, player.y - 45, `❤️ 목숨 +1 획득!! (${player.lives}/10)`, "#f43f5e");
+            playSound('levelup');
+        } else if (item.isGoldBar) {
+            player.gold += item.gold;
+            addFloatingText(player.x, player.y - 42, `🪙 황금 금괴 획득!! +${item.gold} G`, '#fde047');
+            playSound('levelup');
+        } else {
+            player.gold += item.gold;
+            addFloatingText(player.x, player.y - 30, `+${item.gold} G`, '#fde047');
+            playSound('potion');
+        }
+        updateHUD();
+    }
+
+    function mpResetLocalForHostWork() {
+        for (const m of monsters) {
+            if (!m.nid) m.nid = mpNewNid();
+            delete m._tx; delete m._ty;
+            m.frozenTimer = 0; m.chargeTimer = 0; m.chargeWindup = 0; m.jumpTimer = 0; m.jumpHeight = 0; m.latched = false;
+            if (m.attackCooldown === undefined) m.attackCooldown = 0;
+            if (m.rangedTimer === undefined) m.rangedTimer = 0;
+        }
+        mpMirror = {};
+    }
+    function mpUpdateRole() {
+        const net = window.MPNet;
+        let role = 'solo';
+        if (net && net.ready()) role = net.isHost() ? 'host' : 'client';
+        if (role === mpRole) return;
+        const prev = mpRole;
+        mpRole = role;
+        if (role === 'client') {
+            monsters.length = 0;
+            mpMirror = {};
+            enemyProjectiles.length = 0;
+            for (let i = lootDrops.length - 1; i >= 0; i--) if (!lootDrops[i].key) lootDrops.splice(i, 1);
+            net.monGet().then(all => { if (mpRole !== 'client') return; for (const k in all) mpMonSet(k, all[k]); });
+        } else if (role === 'host') {
+            mpResetLocalForHostWork();
+            net.clearTransient();
+            if (prev === 'solo') net.lootClear();
+            mpLastMonSent = {};
+            mpLastFull = 0;
+            mpLastSend = 0;
+            mpLastPop = Date.now() - 4000;
+        } else {
+            mpResetLocalForHostWork();
+        }
+        updateHUD();
+    }
+    function mpRoomChanged() {
+        for (let i = lootDrops.length - 1; i >= 0; i--) if (lootDrops[i].key) lootDrops.splice(i, 1);
+    }
+    function mpTick() {
+        mpUpdateRole();
+        const now = Date.now();
+        if (mpRole === 'host' && now - mpLastSend >= 100) { mpLastSend = now; mpHostSend(now); }
+        if (mpRole !== 'client' && now - mpLastPop >= 5000) { mpLastPop = now; mpPopulationCheck(); }
+        if (mpRole === 'host' && now - mpLastLootClean >= 2000) { mpLastLootClean = now; window.MPNet.cleanupLoot(); }
+    }
+    (function mpWire() {
+        function wire() {
+            const net = window.MPNet;
+            if (!net) { setTimeout(wire, 200); return; }
+            net.on('monSet', mpMonSet);
+            net.on('monDel', mpMonDel);
+            net.on('hits', mpOnHits);
+            net.on('fx', mpOnFx);
+            net.on('lootAdd', mpLootAdd);
+            net.on('lootDel', mpLootDel);
+            net.on('roomChanged', mpRoomChanged);
+        }
+        wire();
+    })();
+
     // ---- 생명석 · 아이템 양도 ----
     const GIFT_ITEMS = [
         { key: 'life', label: '💖 생명석(목숨)' },
@@ -5262,7 +5887,11 @@
         { key: 'hp300', label: '체력 물약(300)' },
         { key: 'hp400', label: '체력 물약(400)' },
         { key: 'hp500', label: '체력 물약(500)' },
-        { key: 'mp', label: '마나 물약' },
+        { key: 'mp100', label: '마나 물약(100)' },
+        { key: 'mp200', label: '마나 물약(200)' },
+        { key: 'mp300', label: '마나 물약(300)' },
+        { key: 'mp400', label: '마나 물약(400)' },
+        { key: 'mp500', label: '마나 물약(500)' },
         { key: 'super', label: '각성 물약' },
         { key: 'food', label: '바비큐' },
         { key: 'boots', label: '신속 장화' },
@@ -5271,6 +5900,7 @@
     function giftItemLabel(key) { const it = GIFT_ITEMS.find(i => i.key === key); return it ? it.label : key; }
     function giftItemHave(key) {
         if (key === 'life') return player.lives || 0;
+        normalizeMpPotions();
         return (player.potions && player.potions[key]) || 0;
     }
     function giftOptionsHtml() {
@@ -5669,7 +6299,10 @@
     }
     window.onload = function() {
         resizeCanvas();
-        initEnvironment();
+        const __realRandom = Math.random;
+        Math.random = mpSeededRandom(20261107);
+        try { initEnvironment(); } finally { Math.random = __realRandom; }
+        mpInitTargets();
         initAllInputFixers();
         updateHUD();
         gameLoop();
