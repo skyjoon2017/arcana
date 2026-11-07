@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v3">
+    <meta name="game-version" content="v4">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -179,7 +179,7 @@
             if (!el && document.body) {
                 el = document.createElement('div');
                 el.id = 'mp-conn-status';
-                el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:4px;z-index:60;font:700 10px "Noto Sans KR",sans-serif;padding:2px 8px;border-radius:999px;background:rgba(2,6,23,.75);border:1px solid rgba(148,163,184,.4);color:#e2e8f0;pointer-events:none;white-space:nowrap';
+                el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:64px;z-index:19;opacity:.9;font:700 10px "Noto Sans KR",sans-serif;padding:2px 8px;border-radius:999px;background:rgba(2,6,23,.75);border:1px solid rgba(148,163,184,.4);color:#e2e8f0;pointer-events:none;white-space:nowrap';
                 document.body.appendChild(el);
             }
             if (!el) return;
@@ -189,11 +189,20 @@
             else if (!db) t = '⏳ 서버 연결 준비 중…';
             else if (!connected) t = '🟡 서버에 연결 중…';
             else {
-                t = '🟢 서버 연결됨 · ' + window.currentRoomChannel + '채널 ' + Math.max(1, n) + '명';
-                if (MPNet.isHost()) t += ' · 👑 내가 방장(몬스터 담당)';
+                t = '🟢 연결됨 · ' + window.currentRoomChannel + '채널 ' + Math.max(1, n) + '명';
+                if (MPNet.isHost()) t += ' · 👑 방장';
             }
             el.textContent = t + ' · ' + ((document.querySelector('meta[name="game-version"]') || {}).content || '');
+            placeStatus(el);
         }
+        function placeStatus(el) {
+            const bar = document.getElementById('item-hotbar');
+            if (!el || !bar) return;
+            const r = bar.getBoundingClientRect();
+            if (r.height > 0) el.style.bottom = Math.max(4, Math.round(window.innerHeight - r.top + 4)) + 'px';
+        }
+        window.addEventListener('resize', function () { placeStatus(document.getElementById('mp-conn-status')); });
+        setInterval(function () { placeStatus(document.getElementById('mp-conn-status')); }, 2000);
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderStatus); else renderStatus();
 
         let notifyTimer = null;
@@ -705,7 +714,7 @@
 
     <!-- Bottom Compact Horizontal Scroll Quickslot Bar -->
     <div class="fixed bottom-1 left-1.5 right-1.5 flex justify-center z-20 pointer-events-none">
-        <div class="hud-panel px-2 py-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-full pointer-events-auto shadow-2xl">
+        <div id="item-hotbar" class="hud-panel px-2 py-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-full pointer-events-auto shadow-2xl">
             <button onclick="castThunderStorm()" class="potion-btn shrink-0 relative px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-left border-yellow-400/80">
                 <span class="bg-yellow-400 text-[9px] font-black px-1 rounded text-slate-950">1</span>
                 <i class="fa-solid fa-cloud-bolt text-yellow-300 text-xs"></i>
