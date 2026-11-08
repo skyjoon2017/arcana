@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v6.5">
+    <meta name="game-version" content="v6.6">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -350,7 +350,7 @@
             for (const k in targets) delete targets[k];
             for (const k in lootMeta) delete lootMeta[k];
             roomKey = key;
-            base = 'rooms/' + key;
+            base = 'rooms/' + key + '__' + String((document.querySelector('meta[name="game-version"]') || {}).content || 'v').replace(/[^A-Za-z0-9]/g, '_');
             lastSent = {};
             lastTsSent = 0;
             playersLoaded = false;
@@ -2594,7 +2594,7 @@
             x = 12020 + Math.random() * 1780;
             y = 200 + Math.random() * (WORLD_HEIGHT - 400);
             return { type: 'giant_water_bug', isSwamp: true, swampScale: 1.9, name: '🪲 물장군', level: 50, x, y, radius: 40,
-                hp: 39000, maxHp: 39000, atk: 850, speed: 5.5, isRanged: false,
+                hp: 39000, maxHp: 39000, atk: 510, speed: 5.5, isRanged: false,
                 isMosquito: true, latched: false, latchOffsetAngle: Math.random() * Math.PI * 2, drainTick: 0, drainEvery: 11,
                 expValue: 6300, goldValue: 3750 };
         } else if (type === 'boss_swamp_croc' || type === 'croc_pack') {
@@ -6560,7 +6560,7 @@
 
     function mpEnragedAtk(m, P) {
         const lv = (P && P.level) || player.level || 1;
-        if (m.isCroc) return Math.round(820 * (8 + 0.2 * lv));        // Lv20이면 지금(820)의 12배
+        if (m.isCroc) return Math.round((m.atkBase || 2700) * 2);     // 빨간 악어: 보통 상태의 2배
         return Math.round((m.atkBase || m.atk) * (1.5 + 0.05 * lv)); // 여치: Lv20이면 2.5배
     }
     function mpEnrage(m) {
@@ -7288,7 +7288,7 @@
             } catch (e) {}
         }
         setTimeout(check, 15000);
-        setInterval(check, 120000);
+        setInterval(check, 60000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
     })();
 
