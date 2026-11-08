@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v6">
+    <meta name="game-version" content="v6.5">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -944,6 +944,15 @@
                 </div>
             </button>
 
+            <button onclick="usePotion('staff')" class="potion-btn shrink-0 relative px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-left border-purple-400/60">
+                <span class="bg-purple-400 text-[9px] font-black px-1 rounded text-slate-950">9</span>
+                <i class="fa-solid fa-wand-sparkles text-purple-300 text-xs"></i>
+                <div>
+                    <div class="text-[10px] font-bold text-purple-300 leading-none">강화석</div>
+                    <div id="count-staff" class="text-[10px] font-black text-white">x0</div>
+                </div>
+            </button>
+
             <button onclick="castDirectionalBolt()" class="game-btn shrink-0 px-2.5 py-1 rounded-lg font-bold text-[10px] text-white hidden lg:flex items-center gap-1">
                 <i class="fa-solid fa-crosshairs text-amber-300"></i> 자동조준(Space)
                 <span id="ui-shoot-cd" class="text-[9px] bg-slate-900/70 px-1 rounded text-emerald-300">1단진화</span>
@@ -1049,7 +1058,7 @@
                         </div>
                         <div>
                             <div class="font-bold text-xs sm:text-sm text-teal-300">신속의 마법 장화 ⚡ (7번 키 · 20초 지속)</div>
-                            <div class="text-[11px] text-teal-100/80">20초 동안 이동속도 1.75배 질주! (재사용 대기시간 20초)</div>
+                            <div class="text-[11px] text-teal-100/80">20초 동안 이동속도 1.75배 질주! (재사용 대기시간 30초)</div>
                         </div>
                     </div>
                     <button onclick="buyItem('boots')" class="game-btn px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0">
@@ -1081,7 +1090,7 @@
                         </div>
                         <span id="selected-mp-tier-label" class="text-[10px] font-bold text-amber-300">[현재 장착: +100 MP]</span>
                     </div>
-                    <div class="grid grid-cols-5 gap-1.5">
+                    <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                         <button onclick="buyMpPotion(100)" class="game-btn py-1.5 px-1 rounded-lg text-[11px] font-bold flex flex-col items-center">
                             <span class="text-sky-200">+100 MP</span>
                             <span class="text-amber-300 font-black"><span id="cost-mp-100">0</span> G</span>
@@ -1107,6 +1116,11 @@
                             <span class="text-amber-300 font-black"><span id="cost-mp-500">0</span> G</span>
                             <span id="inv-mp-500" class="text-[9px] text-white">x0</span>
                         </button>
+                        <button onclick="buyMpPotion(1000)" class="game-btn py-1.5 px-1 rounded-lg text-[11px] font-bold flex flex-col items-center border-sky-300">
+                            <span class="text-sky-100">+1000 MP</span>
+                            <span class="text-amber-300 font-black"><span id="cost-mp-1000">0</span> G</span>
+                            <span id="inv-mp-1000" class="text-[9px] text-white">x0</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1118,7 +1132,7 @@
                         </div>
                         <div>
                             <div class="font-bold text-xs sm:text-sm text-amber-300">초강력 각성 물약 ★ (5번 키)</div>
-                            <div class="text-[11px] text-amber-100/80">15초간 마나 소모 0 + 공격력 2배 증폭!</div>
+                            <div class="text-[11px] text-amber-100/80">10초간 마나 소모 0 + 공격력 2배 증폭! (재사용 대기시간 30초)</div>
                         </div>
                     </div>
                     <button onclick="buyItem('super')" class="game-btn px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0">
@@ -1133,7 +1147,7 @@
                             <i class="fa-solid fa-wand-sparkles"></i>
                         </div>
                         <div>
-                            <div class="font-bold text-xs sm:text-sm text-purple-300">지팡이 강화 <span id="staff-lv-text" class="text-xs text-amber-300">(+0)</span></div>
+                            <div class="font-bold text-xs sm:text-sm text-purple-300">지팡이 강화석 (9번 키) <span id="staff-lv-text" class="text-xs text-amber-300">(+0)</span></div>
                             <div id="staff-desc-text" class="text-[11px] text-purple-200/80">기본 마법 공격력 +16 영구 상승.</div>
                         </div>
                     </div>
@@ -1927,7 +1941,7 @@
         } catch (e) {}
     }
 
-    const WORLD_WIDTH = 12400;
+    const WORLD_WIDTH = 13900;
     const WORLD_HEIGHT = 3200;
     const RIVER_X = 1550;
     const BRIDGE_Y = 1550;
@@ -2015,7 +2029,7 @@
 
     function getHpPotionPrice(tier) {
         const lv = player.level;
-        const lvScale = 1 + (lv - 1) * 0.24;
+        const lvScale = 1 + (lv - 1) * 0.12;
         const basePrices = { 100: 35, 200: 70, 300: 120, 400: 185, 500: 260 };
         return Math.floor((basePrices[tier] || 35) * lvScale);
     }
@@ -2026,9 +2040,9 @@
         if (type === 'mp') {
             return Math.floor(20 * lvScale);
         } else if (type === 'super') {
-            return Math.floor(65 * (1 + (lv - 1) * 0.32));
+            return Math.floor(250 * (1 + (lv - 1) * 0.5));
         } else if (type === 'boots') {
-            return Math.floor(95 * (1 + (lv - 1) * 0.35));
+            return Math.floor(200 * (1 + (lv - 1) * 0.5));
         } else if (type === 'shield') {
             return Math.floor(220 * (1 + Math.pow(lv - 1, 1.25) * 0.45));
         } else if (type === 'food') {
@@ -2110,8 +2124,8 @@
             const tx = RIVER_X + 120 + Math.random() * (WORLD_WIDTH - RIVER_X - 200);
             const ty = 80 + Math.random() * (WORLD_HEIGHT - 160);
             let tType = 'forest';
-            if (tx > 10400) tType = 'swamp';
-            else if (tx > 8600) tType = 'grass';
+            if (tx > 11900) tType = 'swamp';
+            else if (tx > 10100) tType = 'grass';
             else if (tx > 7100) tType = 'celestial';
             else if (tx > 5700) tType = 'volcano';
             else if (tx > 4500) tType = 'ice';
@@ -2119,10 +2133,10 @@
             trees.push({ x: tx, y: ty, radius: 30 + Math.random() * 16, type: tType });
         }
         for (let i = 0; i < 70; i++) {
-            trees.push({ x: 10480 + Math.random() * 1840, y: 80 + Math.random() * (WORLD_HEIGHT - 160), radius: 26 + Math.random() * 14, type: 'swamp' });
+            trees.push({ x: 11980 + Math.random() * 1840, y: 80 + Math.random() * (WORLD_HEIGHT - 160), radius: 26 + Math.random() * 14, type: 'swamp' });
         }
         for (let i = 0; i < 26; i++) {
-            swampPools.push({ x: 10500 + Math.random() * 1800, y: 120 + Math.random() * (WORLD_HEIGHT - 240), rx: 60 + Math.random() * 90, ry: 22 + Math.random() * 30 });
+            swampPools.push({ x: 12000 + Math.random() * 1800, y: 120 + Math.random() * (WORLD_HEIGHT - 240), rx: 60 + Math.random() * 90, ry: 22 + Math.random() * 30 });
         }
         for (let i = 0; i < 135; i++) {
             rocks.push({
@@ -2148,15 +2162,15 @@
         for (let i = 0; i < 35; i++) spawnMonster('dragon');
         for (let i = 0; i < 24; i++) spawnMonster('lava_titan');
         for (let i = 0; i < 19; i++) spawnMonster('fire_scorpion');
-        for (let i = 0; i < 17; i++) spawnMonster('star_mantis');
-        for (let i = 0; i < 17; i++) spawnMonster('hornet_small');
-        for (let i = 0; i < 12; i++) spawnMonster('hornet_medium');
-        for (let i = 0; i < 10; i++) spawnMonster('hornet_large');
-        for (let i = 0; i < 14; i++) spawnMonster('iron_stag_beetle');
+        for (let i = 0; i < 34; i++) spawnMonster('star_mantis');
+        for (let i = 0; i < 34; i++) spawnMonster('hornet_small');
+        for (let i = 0; i < 24; i++) spawnMonster('hornet_medium');
+        for (let i = 0; i < 20; i++) spawnMonster('hornet_large');
+        for (let i = 0; i < 28; i++) spawnMonster('iron_stag_beetle');
 
-        for (let i = 0; i < 10; i++) spawnMonster('soldier_ant', 8680 + Math.random() * 1450, 200 + Math.random() * (WORLD_HEIGHT - 400));
-        for (let i = 0; i < 10; i++) spawnMonster('arachne_spider', 8680 + Math.random() * 1450, 200 + Math.random() * (WORLD_HEIGHT - 400));
-        for (let i = 0; i < 12; i++) spawnMonster('iron_stag_beetle', 8680 + Math.random() * 1500, 200 + Math.random() * (WORLD_HEIGHT - 400));
+        for (let i = 0; i < 10; i++) spawnMonster('g_soldier_ant');
+        for (let i = 0; i < 10; i++) spawnMonster('g_arachne_spider');
+        for (let i = 0; i < 12; i++) spawnMonster('g_iron_stag_beetle');
         for (let i = 0; i < 17; i++) spawnMonster('jungle_mantis');
         for (let i = 0; i < 17; i++) spawnMonster('rhino_beetle');
         for (let i = 0; i < 22; i++) spawnMonster('blood_mosquito');
@@ -2174,11 +2188,23 @@
         spawnMonster('boss_katydid_1');
         spawnMonster('boss_katydid_2');
         spawnMonster('boss_swamp_croc');
+        spawnMonster('boss_swamp_croc');
     }
 
     function createMonsterData(type) {
         let x, y;
         const speedMult = 1.2;
+        if (typeof type === 'string' && type.startsWith('g_')) {
+            const d = createMonsterData(type.slice(2));
+            d.spawnKey = type;
+            d.x = 10180 + Math.random() * (type === 'g_iron_stag_beetle' ? 1500 : 1450);
+            d.y = 200 + Math.random() * (WORLD_HEIGHT - 400);
+            d.hp = d.maxHp = d.hp * 3;
+            d.atk = d.atk * 3;
+            d.expValue = d.expValue * 2;
+            d.goldValue = d.goldValue * 2;
+            return d;
+        }
 
         if (type === 'goblin') {
             x = RIVER_X + 180 + Math.random() * 900;
@@ -2371,7 +2397,7 @@
                 goldValue: 160
             };
         } else if (type === 'star_mantis') {
-            x = 7120 + Math.random() * 620;
+            x = 7120 + Math.random() * 1260;
             y = 220 + Math.random() * (WORLD_HEIGHT - 440);
             return {
                 type: 'star_mantis',
@@ -2392,19 +2418,19 @@
                 goldValue: 285
             };
         } else if (type === 'hornet_small') {
-            x = 7150 + Math.random() * 1250;
+            x = 7150 + Math.random() * 2900;
             y = 220 + Math.random() * (WORLD_HEIGHT - 440);
             return { type: 'hornet_small', isHornet: true, hornetScale: 0.9, name: '🐝 정찰 독침 일벌', level: 22, x, y, radius: 22, hp: 1050, maxHp: 1050, atk: 62, speed: 2.55 * speedMult, isRanged: true, rangedColor: '#facc15', rangedSpeed: 8.2, rangedInterval: 92, rangedPatterns: 2, expValue: 430, goldValue: 250 };
         } else if (type === 'hornet_medium') {
-            x = 7300 + Math.random() * 1150;
+            x = 7500 + Math.random() * 2550;
             y = 220 + Math.random() * (WORLD_HEIGHT - 440);
             return { type: 'hornet_medium', isHornet: true, hornetScale: 1.3, name: '🐝 맹독 장수말벌 전사', level: 26, x, y, radius: 30, hp: 1450, maxHp: 1450, atk: 74, speed: 2.35 * speedMult, isRanged: true, rangedColor: '#fb923c', rangedSpeed: 8.6, rangedInterval: 85, rangedPatterns: 3, expValue: 560, goldValue: 320 };
         } else if (type === 'hornet_large') {
-            x = 7550 + Math.random() * 900;
+            x = 8000 + Math.random() * 2050;
             y = 220 + Math.random() * (WORLD_HEIGHT - 440);
             return { type: 'hornet_large', isHornet: true, hornetScale: 1.75, name: '🐝 로열 가드 대장말벌', level: 30, x, y, radius: 38, hp: 1950, maxHp: 1950, atk: 88, speed: 2.2 * speedMult, isRanged: true, rangedColor: '#ef4444', rangedSpeed: 9.0, rangedInterval: 78, rangedPatterns: 4, expValue: 740, goldValue: 420 };
         } else if (type === 'iron_stag_beetle') {
-            x = 7550 + Math.random() * 900;
+            x = 8000 + Math.random() * 2050;
             y = 220 + Math.random() * (WORLD_HEIGHT - 440);
             return {
                 type: 'iron_stag_beetle',
@@ -2431,7 +2457,7 @@
                 goldValue: 395
             };
         } else if (type === 'boss_minion') {
-            return { type: 'boss_minion', isHornet: true, hornetScale: 0.85, name: '🐝 여왕 친위 독침벌', level: 28, x: 9800, y: BRIDGE_Y, radius: 20, hp: 500, maxHp: 500, atk: 78, speed: 3.4, isRanged: true, rangedColor: '#facc15', rangedSpeed: 8.0, rangedInterval: 75, rangedPatterns: 2, isMinion: true, expValue: 65, goldValue: 38 };
+            return { type: 'boss_minion', isHornet: true, hornetScale: 0.85, name: '🐝 여왕 친위 독침벌', level: 28, x: 11300, y: BRIDGE_Y, radius: 20, hp: 500, maxHp: 500, atk: 78, speed: 3.4, isRanged: true, rangedColor: '#facc15', rangedSpeed: 8.0, rangedInterval: 75, rangedPatterns: 2, isMinion: true, expValue: 65, goldValue: 38 };
         } else if (type === 'boss_orc') {
             return { type: 'boss_orc', spawnKey: 'boss_orc', name: '★ 오크 대족장 크로그', level: 10, x: 3250, y: BRIDGE_Y, radius: 36, hp: 950, maxHp: 950, atk: 38, speed: 1.85 * speedMult, isRanged: true, rangedColor: '#fbbf24', rangedSpeed: 6.6, rangedInterval: 90, rangedPatterns: 3, expValue: 240, goldValue: 200 };
         } else if (type === 'boss_archmage') {
@@ -2443,11 +2469,11 @@
                 type: 'boss_celestial', spawnKey: 'boss_celestial',
                 isHornet: true, hornetScale: 2.75,
                 name: '★★★★ 황금 독침 여왕말벌 베스파', level: 42,
-                x: 8050, y: BRIDGE_Y - 380,
-                homeX: 8050, homeY: BRIDGE_Y - 380, leashMinX: 7050, leashMaxX: 8650,
+                x: 9000, y: BRIDGE_Y - 380,
+                homeX: 9000, homeY: BRIDGE_Y - 380, leashMinX: 7050, leashMaxX: 10150,
                 radius: 105,
-                hp: 22200, maxHp: 22200,
-                atk: 282,
+                hp: 26640, maxHp: 26640,
+                atk: 338,
                 speed: 2.65,
                 chargeSpeed: 9.8,
                 isRanged: true, rangedColor: '#fde047', rangedSpeed: 9.5, rangedInterval: 45, rangedPatterns: 7,
@@ -2462,11 +2488,11 @@
                 type: 'boss_apocalypse', spawnKey: 'boss_apocalypse',
                 isHornet: true, hornetScale: 3.35,
                 name: '★★★★★ 말벌둥지 대군주 킹호넷', level: 65,
-                x: 8320, y: BRIDGE_Y,
-                homeX: 8320, homeY: BRIDGE_Y, leashMinX: 7050, leashMaxX: 8650,
+                x: 9540, y: BRIDGE_Y,
+                homeX: 9540, homeY: BRIDGE_Y, leashMinX: 7050, leashMaxX: 10150,
                 radius: 135,
-                hp: 42000, maxHp: 42000,
-                atk: 372,
+                hp: 50400, maxHp: 50400,
+                atk: 446,
                 speed: 2.85,
                 chargeSpeed: 10.6,
                 isRanged: true, rangedColor: '#f43f5e', rangedSpeed: 10.4, rangedInterval: 38, rangedPatterns: 9,
@@ -2477,7 +2503,7 @@
                 expValue: 9500, goldValue: 11500
             };
         } else if (type === 'jungle_mantis') {
-            x = 8680 + Math.random() * 1450;
+            x = 10180 + Math.random() * 1450;
             y = 200 + Math.random() * (WORLD_HEIGHT - 400);
             return {
                 type: 'jungle_mantis',
@@ -2485,20 +2511,20 @@
                 level: 36,
                 x, y,
                 radius: 34,
-                hp: 3100,
-                maxHp: 3100,
-                atk: 118,
+                hp: 9300,
+                maxHp: 9300,
+                atk: 354,
                 speed: 2.75 * speedMult,
                 isRanged: true,
                 rangedColor: '#84cc16',
                 rangedSpeed: 9.6,
                 rangedInterval: 74,
                 rangedPatterns: 4,
-                expValue: 1080,
-                goldValue: 640
+                expValue: 2160,
+                goldValue: 1280
             };
         } else if (type === 'rhino_beetle') {
-            x = 8750 + Math.random() * 1450;
+            x = 10250 + Math.random() * 1450;
             y = 200 + Math.random() * (WORLD_HEIGHT - 400);
             return {
                 type: 'rhino_beetle',
@@ -2506,9 +2532,9 @@
                 level: 40,
                 x, y,
                 radius: 40,
-                hp: 4200,
-                maxHp: 4200,
-                atk: 138,
+                hp: 12600,
+                maxHp: 12600,
+                atk: 414,
                 speed: 2.4 * speedMult,
                 chargeSpeed: 10.2,
                 isRanged: true,
@@ -2521,11 +2547,11 @@
                 chargeWindup: 0,
                 chargeTimer: 0,
                 chargeAngle: 0,
-                expValue: 1380,
-                goldValue: 820
+                expValue: 2760,
+                goldValue: 1640
             };
         } else if (type === 'blood_mosquito') {
-            x = 8680 + Math.random() * 1500;
+            x = 10180 + Math.random() * 1500;
             y = 200 + Math.random() * (WORLD_HEIGHT - 400);
             return {
                 type: 'blood_mosquito',
@@ -2533,64 +2559,76 @@
                 level: 38,
                 x, y,
                 radius: 22,
-                hp: 2450,
-                maxHp: 2450,
-                atk: 128,
+                hp: 7350,
+                maxHp: 7350,
+                atk: 384,
                 speed: 4.35 * speedMult,
                 isRanged: false,
                 isMosquito: true,
                 latched: false,
                 latchOffsetAngle: Math.random() * Math.PI * 2,
                 drainTick: 0,
-                expValue: 1180,
-                goldValue: 700
+                expValue: 2360,
+                goldValue: 1400
             };
         } else if (type === 'swamp_dragonfly') {
-            x = 10520 + Math.random() * 1780;
+            x = 12020 + Math.random() * 1780;
             y = 200 + Math.random() * (WORLD_HEIGHT - 400);
             return { type: 'swamp_dragonfly', isSwamp: true, swampScale: 1.25, name: '🪰 거대 늪잠자리', level: 45, x, y, radius: 26,
-                hp: 4400, maxHp: 4400, atk: 142, speed: 3.6 * speedMult, isRanged: false, expValue: 1500, goldValue: 900 };
+                hp: 22000, maxHp: 22000, atk: 710, speed: 6.24, isRanged: false, meleeCd: 15, expValue: 4500, goldValue: 2700 };
         } else if (type === 'swamp_toad') {
-            x = 10520 + Math.random() * 1780;
+            x = 12020 + Math.random() * 1780;
             y = 200 + Math.random() * (WORLD_HEIGHT - 400);
             return { type: 'swamp_toad', isSwamp: true, swampScale: 1.35, name: '🐸 늪 독두꺼비', level: 47, x, y, radius: 28,
-                hp: 5600, maxHp: 5600, atk: 150, speed: 1.9 * speedMult,
-                isRanged: true, rangedColor: '#a855f7', rangedSpeed: 7.5, rangedInterval: 120, rangedPatterns: 1,
-                expValue: 1650, goldValue: 980 };
+                hp: 28000, maxHp: 28000, atk: 750, speed: 1.9 * speedMult, meleeCd: 15,
+                isRanged: true, rangedColor: '#a855f7', rangedSpeed: 7.5, rangedInterval: 40, rangedPatterns: 1,
+                expValue: 4950, goldValue: 2940 };
         } else if (type === 'swamp_viper') {
-            x = 10520 + Math.random() * 1780;
+            x = 12020 + Math.random() * 1780;
             y = 200 + Math.random() * (WORLD_HEIGHT - 400);
             return { type: 'swamp_viper', isSwamp: true, swampScale: 1.6, name: '🐍 늪 독사', level: 48, x, y, radius: 32,
-                hp: 5200, maxHp: 5200, atk: 160, speed: 1.8 * speedMult,
-                isRanged: true, rangedColor: '#84cc16', rangedSpeed: 9.5, rangedInterval: 95, rangedPatterns: 3,
-                expValue: 1750, goldValue: 1040 };
+                hp: 26000, maxHp: 26000, atk: 800, speed: 1.8 * speedMult, meleeCd: 15,
+                isRanged: true, rangedColor: '#84cc16', rangedSpeed: 9.5, rangedInterval: 32, rangedPatterns: 3,
+                expValue: 5250, goldValue: 3120 };
         } else if (type === 'giant_water_bug') {
-            x = 10520 + Math.random() * 1780;
+            x = 12020 + Math.random() * 1780;
             y = 200 + Math.random() * (WORLD_HEIGHT - 400);
             return { type: 'giant_water_bug', isSwamp: true, swampScale: 1.9, name: '🪲 물장군', level: 50, x, y, radius: 40,
-                hp: 7800, maxHp: 7800, atk: 170, speed: 3.4 * speedMult, isRanged: false,
-                isMosquito: true, latched: false, latchOffsetAngle: Math.random() * Math.PI * 2, drainTick: 0,
-                expValue: 2100, goldValue: 1250 };
-        } else if (type === 'boss_swamp_croc') {
+                hp: 39000, maxHp: 39000, atk: 850, speed: 5.5, isRanged: false,
+                isMosquito: true, latched: false, latchOffsetAngle: Math.random() * Math.PI * 2, drainTick: 0, drainEvery: 11,
+                expValue: 6300, goldValue: 3750 };
+        } else if (type === 'boss_swamp_croc' || type === 'croc_pack') {
+            const isPack = type === 'croc_pack';
+            const slots = isPack ? [[12900, -300], [13400, -300], [12900, 300], [13400, 300]] : [[13150, -260], [13150, 260]];
+            const n = isPack ? (window.__crocPackSlot = (window.__crocPackSlot || 0) + 1) : (window.__crocSlot = (window.__crocSlot || 0) + 1);
+            const s = slots[n % slots.length];
             return {
-                type: 'boss_swamp_croc', spawnKey: 'boss_swamp_croc', isSwamp: true, swampScale: 3.0, isCroc: true,
-                name: '★★★★★★ 늪의 군주 고대 악어', level: 100,
-                x: 11650, y: BRIDGE_Y, homeX: 11650, homeY: BRIDGE_Y, leashMinX: 10450, leashMaxX: WORLD_WIDTH,
-                radius: 145, hp: 110000, maxHp: 110000, atk: 820, speed: 2.9,
+                type: 'boss_swamp_croc', spawnKey: type, isSwamp: true, swampScale: 3.0, isCroc: true, isPack: isPack, enraged: isPack,
+                name: isPack ? '★★★★★★ 악어떼 · 붉은 고대 악어' : '★★★★★★ 늪의 군주 고대 악어', level: 100,
+                x: s[0], y: BRIDGE_Y + s[1], homeX: s[0], homeY: BRIDGE_Y + s[1], leashMinX: 11950, leashMaxX: WORLD_WIDTH,
+                radius: 145, hp: 660000, maxHp: 660000, atk: 2700, atkBase: 2700, canEnrage: true, speed: 5.8,
                 isRanged: false, isSupremeBoss: true,
-                tailTimer: 200, spikeTimer: 140, biteAnim: 0, tailAnim: 0, spikeAnim: 0,
+                tailTimer: 200, spikeTimer: 140, tpTimer: 90, babyTimer: 600, biteAnim: 0, tailAnim: 0, spikeAnim: 0,
                 expValue: 30000, goldValue: 80000
+            };
+        } else if (type === 'croc_baby') {
+            return {
+                type: 'croc_baby', isSwamp: true, swampScale: 1.35, isCrocBaby: true, enraged: true, isMinion: true,
+                name: '🐊 붉은 새끼 악어', level: 80, x: 12900, y: BRIDGE_Y,
+                radius: 46, hp: 30000, maxHp: 30000, atk: 1500, speed: 6.0, meleeCd: 30, isRanged: false,
+                biteAnim: 0, tailAnim: 0, spikeAnim: 0,
+                expValue: 1000, goldValue: 670
             };
         } else if (type === 'boss_katydid_1') {
             return {
                 type: 'boss_katydid_1', spawnKey: 'boss_katydid_1',
                 isKatydidBoss: true, katydidScale: 2.95,
                 name: '★★★★★ 풀숲의 폭군 대왕여치 그린조', level: 78,
-                x: 9480, y: BRIDGE_Y - 360,
-                homeX: 9480, homeY: BRIDGE_Y - 360, leashMinX: 8550, leashMaxX: 10350,
+                x: 10980, y: BRIDGE_Y - 360,
+                homeX: 10980, homeY: BRIDGE_Y - 360, leashMinX: 10050, leashMaxX: 11850,
                 radius: 112,
-                hp: 48000, maxHp: 48000,
-                atk: 495,
+                hp: 144000, maxHp: 144000,
+                atk: 1485, atkBase: 1485, canEnrage: true,
                 speed: 3.1,
                 isRanged: true, rangedColor: '#a3e635', rangedSpeed: 10.2, rangedInterval: 95, rangedPatterns: 7,
                 isSupremeBoss: true,
@@ -2604,11 +2642,11 @@
                 type: 'boss_katydid_2', spawnKey: 'boss_katydid_2',
                 isKatydidBoss: true, katydidScale: 3.35,
                 name: '★★★★★ 심록의 포식자 황제여치 베르단트', level: 88,
-                x: 10040, y: BRIDGE_Y + 260,
-                homeX: 10040, homeY: BRIDGE_Y + 260, leashMinX: 8550, leashMaxX: 10350,
+                x: 11540, y: BRIDGE_Y + 260,
+                homeX: 11540, homeY: BRIDGE_Y + 260, leashMinX: 10050, leashMaxX: 11850,
                 radius: 132,
-                hp: 78000, maxHp: 78000,
-                atk: 640,
+                hp: 234000, maxHp: 234000,
+                atk: 1920, atkBase: 1920, canEnrage: true,
                 speed: 3.3,
                 isRanged: true, rangedColor: '#4ade80', rangedSpeed: 10.8, rangedInterval: 82, rangedPatterns: 9,
                 isSupremeBoss: true,
@@ -3064,62 +3102,65 @@
             c.beginPath(); c.arc(21.5, -10 + y, 1.8, 0, PI2); c.arc(21.5, -4 + y, 1.8, 0, PI2); c.fill();
             c.strokeStyle = '#1c1917'; c.lineWidth = 1.8;              // 주둥이
             c.beginPath(); c.moveTo(24, -7 + y); c.lineTo(29, -6 + y); c.stroke();
-        } else if (m.type === 'boss_swamp_croc') {
+        } else if (m.type === 'boss_swamp_croc' || m.type === 'croc_baby') {
+            const RED = { '#2f4a0b': '#4c0519', '#3f6212': '#991b1b', '#4d7c0f': '#dc2626', '#365314': '#7f1d1d', '#1a2e05': '#450a0a',
+                '#d9e7a3': '#fecaca', 'rgba(132, 204, 22, 0.13)': 'rgba(239, 68, 68, 0.28)', 'rgba(132, 204, 22, 0.7)': 'rgba(252, 165, 165, 0.65)' };
+            const R = (col) => (m.enraged && RED[col]) || col;
             // 🐊 늪의 군주 고대 악어: 긴 몸통과 꼬리, 등가시, 이빨, 빛나는 호박색 눈, 이끼 낀 비늘
             const tailSwing = frozen ? 0 : ((m.tailAnim || 0) > 0 ? Math.sin(t * 0.035) * 0.65 : Math.sin(t * 0.004 + (m.walkFrame || 0) * 0.5) * 0.16);
             const jaw = (m.biteAnim || 0) > 0 ? Math.sin(((m.biteAnim || 0) / 24) * Math.PI) * 0.5 : 0.06 + Math.max(0, Math.sin(t * 0.0018)) * 0.05;
             const spike = (m.spikeAnim || 0) > 0 ? 1.7 : 1;
             const step = frozen ? 0 : Math.sin((m.walkFrame || 0) * 0.8) * 2;
             const y = bob * 0.25;
-            c.fillStyle = 'rgba(132, 204, 22, 0.13)';                 // 보스 기운
+            c.fillStyle = R('rgba(132, 204, 22, 0.13)');                 // 보스 기운
             c.beginPath(); c.ellipse(-6, -4, 62, 24, 0, 0, PI2); c.fill();
             c.fillStyle = 'rgba(15, 23, 42, 0.32)';                   // 긴 그림자
             c.beginPath(); c.ellipse(-8, 13, 58, 8, 0, 0, PI2); c.fill();
-            c.fillStyle = F('#2f4a0b');                               // 먼 쪽 다리
+            c.fillStyle = F(R('#2f4a0b'));                               // 먼 쪽 다리
             c.beginPath(); c.ellipse(-20 - step, 8, 6, 4.5, 0.2, 0, PI2); c.ellipse(16 + step, 8, 6, 4.5, -0.2, 0, PI2); c.fill();
             c.save(); c.translate(-28, -2 + y); c.rotate(tailSwing);    // 꼬리
-            c.fillStyle = F('#3f6212'); c.strokeStyle = '#1a2e05'; c.lineWidth = 1.6;
+            c.fillStyle = F(R('#3f6212')); c.strokeStyle = R('#1a2e05'); c.lineWidth = 1.6;
             c.beginPath(); c.moveTo(4, -10); c.quadraticCurveTo(-18, -9, -40, -2); c.quadraticCurveTo(-18, 6, 4, 9); c.closePath(); c.fill(); c.stroke();
             c.fillStyle = W ? '#ffffff' : '#d4d4a8';
             for (let i = 0; i < 6; i++) { const x = -2 - i * 6.2, h = (5 - i * 0.65) * spike, base = -9 + i * 1.2; c.beginPath(); c.moveTo(x + 2.4, base); c.lineTo(x, base - h); c.lineTo(x - 2.4, base); c.fill(); }
             c.restore();
-            c.fillStyle = F('#4d7c0f'); c.strokeStyle = '#1a2e05'; c.lineWidth = 2;   // 몸통
+            c.fillStyle = F(R('#4d7c0f')); c.strokeStyle = R('#1a2e05'); c.lineWidth = 2;   // 몸통
             c.beginPath(); c.ellipse(-6, -2 + y, 31, 13, 0, 0, PI2); c.fill(); c.stroke();
-            c.fillStyle = W ? '#ffffff' : '#d9e7a3';                  // 배
+            c.fillStyle = W ? '#ffffff' : R('#d9e7a3');                  // 배
             c.beginPath(); c.ellipse(-4, 6 + y, 25, 5, 0, 0, PI2); c.fill();
             if (!W) {
-                c.fillStyle = '#365314';                              // 등 비늘
+                c.fillStyle = R('#365314');                              // 등 비늘
                 for (let r = 0; r < 2; r++) for (let i = 0; i < 7; i++) { c.beginPath(); c.roundRect(-30 + i * 7.5, -9 + r * 5 + y, 5.5, 3.6, 1.2); c.fill(); }
-                c.fillStyle = 'rgba(132, 204, 22, 0.7)';              // 이끼
+                c.fillStyle = R('rgba(132, 204, 22, 0.7)');              // 이끼
                 [[-18, -10, 6, 3], [2, -11, 5, 2.5], [-30, -4, 4, 2.4]].forEach(p => { c.beginPath(); c.ellipse(p[0], p[1] + y, p[2], p[3], 0, 0, PI2); c.fill(); });
             }
             c.fillStyle = W ? '#ffffff' : '#e7e5c4';                  // 등가시
             for (let i = 0; i < 8; i++) { const x = -30 + i * 7.3, h = (6.5 + (i % 2) * 2) * spike; c.beginPath(); c.moveTo(x + 3, -12 + y); c.lineTo(x, -12 - h + y); c.lineTo(x - 3, -12 + y); c.fill(); }
             if ((m.spikeAnim || 0) > 0 && !W) { c.strokeStyle = 'rgba(253, 224, 71, 0.7)'; c.lineWidth = 1.5; for (let i = 0; i < 8; i++) { const x = -30 + i * 7.3; c.beginPath(); c.moveTo(x, -22 + y); c.lineTo(x, -26 + y); c.stroke(); } }
-            c.fillStyle = F('#3f6212');                               // 가까운 쪽 다리
+            c.fillStyle = F(R('#3f6212'));                               // 가까운 쪽 다리
             c.beginPath(); c.ellipse(-24 + step, 10, 6.5, 4.5, 0.25, 0, PI2); c.ellipse(12 - step, 10, 6.5, 4.5, -0.25, 0, PI2); c.fill();
             c.fillStyle = W ? '#ffffff' : '#e7e5c4';                  // 발톱
             [[-29 + step, 12], [7 - step, 12]].forEach(p => { for (let k = 0; k < 3; k++) { c.beginPath(); c.arc(p[0] + k * 2.4, p[1] + 1.5, 0.9, 0, PI2); c.fill(); } });
             c.save(); c.translate(24, -3 + y);                         // 머리
-            c.fillStyle = F('#4d7c0f'); c.strokeStyle = '#1a2e05'; c.lineWidth = 2;
+            c.fillStyle = F(R('#4d7c0f')); c.strokeStyle = R('#1a2e05'); c.lineWidth = 2;
             c.beginPath(); c.ellipse(0, 0, 11, 9, 0, 0, PI2); c.fill(); c.stroke();
             c.save(); c.translate(3, 2); c.rotate(jaw);                 // 아래턱
-            c.fillStyle = F('#3f6212');
+            c.fillStyle = F(R('#3f6212'));
             c.beginPath(); c.moveTo(0, 0); c.lineTo(25, 1); c.quadraticCurveTo(26, 4.5, 22, 5); c.lineTo(0, 5); c.closePath(); c.fill(); c.stroke();
             c.fillStyle = W ? '#ffffff' : '#fafaf0';
             for (let i = 0; i < 6; i++) { const x = 4 + i * 3.6; c.beginPath(); c.moveTo(x, 0.6); c.lineTo(x + 1.5, -2.6); c.lineTo(x + 3, 0.6); c.fill(); }
             c.fillStyle = 'rgba(190, 18, 60, 0.85)'; c.beginPath(); c.moveTo(2, 0.8); c.lineTo(22, 1.4); c.lineTo(20, 3); c.lineTo(2, 3); c.fill();
             c.restore();
-            c.fillStyle = F('#4d7c0f');                               // 윗턱(긴 주둥이)
+            c.fillStyle = F(R('#4d7c0f'));                               // 윗턱(긴 주둥이)
             c.beginPath(); c.moveTo(2, -7); c.quadraticCurveTo(16, -7.5, 29, -3.5); c.quadraticCurveTo(31, -1, 28, 1.5); c.lineTo(3, 2.5); c.closePath(); c.fill(); c.stroke();
             c.fillStyle = W ? '#ffffff' : '#fafaf0';
             for (let i = 0; i < 7; i++) { const x = 5 + i * 3.4; c.beginPath(); c.moveTo(x, 2); c.lineTo(x + 1.4, 5.2); c.lineTo(x + 2.8, 2); c.fill(); }
-            c.fillStyle = '#1a2e05'; c.beginPath(); c.arc(27, -3.2, 1, 0, PI2); c.fill();   // 콧구멍
-            c.fillStyle = F('#4d7c0f'); c.beginPath(); c.ellipse(2, -8, 5.5, 4.5, 0, 0, PI2); c.fill(); c.stroke();   // 눈두덩
+            c.fillStyle = R('#1a2e05'); c.beginPath(); c.arc(27, -3.2, 1, 0, PI2); c.fill();   // 콧구멍
+            c.fillStyle = F(R('#4d7c0f')); c.beginPath(); c.ellipse(2, -8, 5.5, 4.5, 0, 0, PI2); c.fill(); c.stroke();   // 눈두덩
             c.save(); if (!W) { c.shadowColor = '#f59e0b'; c.shadowBlur = 10; }
             c.fillStyle = W ? '#ffffff' : '#fbbf24'; c.beginPath(); c.arc(3, -8.6, 3.1, 0, PI2); c.fill(); c.restore();
             c.fillStyle = '#0f172a'; c.beginPath(); c.ellipse(3.4, -8.6, 0.9, 2.5, 0, 0, PI2); c.fill();
-            c.strokeStyle = '#1a2e05'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(-3, -12); c.lineTo(7, -11.5); c.stroke();
+            c.strokeStyle = R('#1a2e05'); c.lineWidth = 1.6; c.beginPath(); c.moveTo(-3, -12); c.lineTo(7, -11.5); c.stroke();
             c.restore();
         }
     }
@@ -3152,14 +3193,15 @@
             drawSwampMonster(targetCtx, m, bob);
         } else if (m.isKatydidBoss) {
             const isEmperor = m.type === 'boss_katydid_2';
+            const RAGE = !!m.enraged;
             const wingShake = (m.wingFlapAnim && m.wingFlapAnim > 0) ? Math.sin(performance.now() * 0.12) * 14 : Math.sin(performance.now() * 0.02 + m.walkFrame) * 3;
-            const bodyGreen = isEmperor ? '#15803d' : '#4d7c0f';
-            const wingGreen = isEmperor ? '#22c55e' : '#84cc16';
+            const bodyGreen = RAGE ? (isEmperor ? '#b91c1c' : '#dc2626') : (isEmperor ? '#15803d' : '#4d7c0f');
+            const wingGreen = RAGE ? (isEmperor ? '#f87171' : '#fca5a5') : (isEmperor ? '#22c55e' : '#84cc16');
 
-            targetCtx.fillStyle = isEmperor ? 'rgba(74, 222, 128, 0.22)' : 'rgba(163, 230, 53, 0.22)';
-            targetCtx.beginPath(); targetCtx.arc(0, -10, 28, 0, Math.PI * 2); targetCtx.fill();
+            targetCtx.fillStyle = RAGE ? `rgba(239, 68, 68, ${0.3 + Math.sin(performance.now() * 0.01) * 0.1})` : (isEmperor ? 'rgba(74, 222, 128, 0.22)' : 'rgba(163, 230, 53, 0.22)');
+            targetCtx.beginPath(); targetCtx.arc(0, -10, RAGE ? 34 : 28, 0, Math.PI * 2); targetCtx.fill();
 
-            targetCtx.strokeStyle = isEmperor ? '#14532d' : '#365314';
+            targetCtx.strokeStyle = RAGE ? '#450a0a' : (isEmperor ? '#14532d' : '#365314');
             targetCtx.lineWidth = 4.5;
             targetCtx.beginPath();
             targetCtx.moveTo(-4, -6 + bob);
@@ -3185,7 +3227,7 @@
             targetCtx.ellipse(4, -9 + bob, 12, 8, 0, 0, Math.PI * 2);
             targetCtx.fill();
 
-            targetCtx.fillStyle = m.hitFlash > 0 ? '#ffffff' : (isEmperor ? '#166534' : '#65a30d');
+            targetCtx.fillStyle = m.hitFlash > 0 ? '#ffffff' : (RAGE ? '#991b1b' : (isEmperor ? '#166534' : '#65a30d'));
             targetCtx.beginPath();
             targetCtx.ellipse(14, -12 + bob, 8.5, 9.5, 0.15, 0, Math.PI * 2);
             targetCtx.fill();
@@ -3847,9 +3889,9 @@
         else if (dest === 'ice') { player.x = 4650; player.y = BRIDGE_Y; }
         else if (dest === 'dragon') { player.x = 5850; player.y = BRIDGE_Y; }
         else if (dest === 'celestial') { player.x = 7200; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🪐 별무리 행성에 진입했습니다!", "#e879f9"); }
-        else if (dest === 'hornet_nest') { player.x = 7850; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🐝 맹독 말벌둥지에 진입했습니다!", "#facc15"); }
-        else if (dest === 'grass_nest') { player.x = 8750; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🌿 거대 풀숲 둥지에 진입했습니다! (흡혈모기 & 여치보스 주의)", "#a3e635"); }
-        else if (dest === 'swamp') { player.x = 10650; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🐊 그림자 늪에 들어왔습니다! (Lv.45 이상 고레벨 사냥터)", "#5eead4"); }
+        else if (dest === 'hornet_nest') { player.x = 8500; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🐝 맹독 말벌둥지에 진입했습니다!", "#facc15"); }
+        else if (dest === 'grass_nest') { player.x = 10250; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🌿 거대 풀숲 둥지에 진입했습니다! (흡혈모기 & 여치보스 주의)", "#a3e635"); }
+        else if (dest === 'swamp') { player.x = 12150; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🐊 그림자 늪에 들어왔습니다! (Lv.45 이상 고레벨 사냥터)", "#5eead4"); }
         for (const pet of pets) { pet.x = player.x; pet.y = player.y; }
         playSound('potion');
         updateHUD();
@@ -3872,7 +3914,7 @@
         }
         player.mp = Math.max(0, player.mp - manaCost);
 
-        const speedReduction = Math.min(33, Math.floor((lv - 1) * 1.35));
+        const speedReduction = Math.min(33, Math.floor((Math.min(lv, 20) - 1) * 1.35)); // Lv20 이후 고정
         player.shootCooldown = player.superBuffTimer > 0 ? 11 : Math.max(15, 48 - speedReduction);
         player.attackAnim = 1.0;
 
@@ -4007,19 +4049,29 @@
         // 방장이 아닌 사람: 방장에게 "때렸다"고 알리고, 화면에는 바로 보여줌
         if (mpRole === 'client') {
             if (window.MPNet && m.nid) window.MPNet.queueHit(m.nid, dmg, frz || 0);
+            const shown = m.enraged && !m.isCrocBaby ? Math.max(1, Math.round(dmg * 0.5)) : dmg;
             m._localHitAt = Date.now();
-            m.hp = Math.max(1, m.hp - dmg);
+            m.hp = Math.max(1, m.hp - shown);
             m.hitFlash = 6;
-            addFloatingText(m.x, m.y - 28, `-${dmg}`, '#fde047');
+            addFloatingText(m.x, m.y - 28, `-${shown}`, '#fde047');
             playSound('hit');
             for (let i = 0; i < 5; i++) {
                 particles.push({ x: m.x, y: m.y - 10, vx: (Math.random() - 0.5) * 4.5, vy: (Math.random() - 0.5) * 4.5, size: 4, color: '#fbbf24', life: 16 });
             }
             return;
         }
+        if (m.canEnrage && m.enraged) {
+            if (Math.random() < 0.3) {
+                m.lastHitAt = Date.now();
+                if (Date.now() - (m._dodgeTxtAt || 0) > 350) { m._dodgeTxtAt = Date.now(); mpCrocSay(m, m.isCroc ? 150 : 120, "💨 회피!", "#fca5a5"); }
+                return;
+            }
+            dmg = Math.max(1, Math.round(dmg * 0.5));
+        }
         m.hp -= dmg;
         m.lastHitAt = Date.now();
         m.hitFlash = 6;
+        if (m.canEnrage && !m.enraged && m.hp > 0 && m.hp <= m.maxHp * 0.5) mpEnrage(m);
         addFloatingText(m.x, m.y - 28, `-${dmg}`, (!attackerUid || attackerUid === window.cloudUserId) ? '#fde047' : '#bae6fd');
         if (!attackerUid || attackerUid === window.cloudUserId) playSound('hit');
 
@@ -4041,7 +4093,8 @@
             monsters.splice(idx, 1);
             mpAddLoot({ x: info.x, y: info.y, gold: m.goldValue, isLifeHeart: false, isGoldBar: false, life: 540 });
 
-            if (!m.isMinion) {
+            if (m.isCroc) crocWave.lastDeath = m.isPack ? 'pack' : 'normal';
+            if (!m.isMinion && deadType !== 'boss_swamp_croc' && deadType !== 'croc_pack') {
                 const isBossMob = deadType.startsWith('boss');
                 const respawnDelay = Math.round((isBossMob ? 25000 : (16000 + Math.floor(Math.random() * 3000))) * 0.75 * mpRespawnMul()); // 리젠 25% 단축 + 인원 보정
                 mpPendingRespawn[deadType] = (mpPendingRespawn[deadType] || 0) + 1;
@@ -4050,7 +4103,7 @@
                     if (mpRole === 'client') return; // 그 사이 방장이 바뀌었으면 새 방장이 채움
                     if (isBossMob) {
                         spawnMonster(deadType);
-                    } else if (respawnHomeX !== undefined && respawnHomeX > 8600 && (deadType === 'soldier_ant' || deadType === 'arachne_spider' || deadType === 'iron_stag_beetle')) {
+                    } else if (respawnHomeX !== undefined && respawnHomeX > 99999 && (deadType === 'soldier_ant' || deadType === 'arachne_spider' || deadType === 'iron_stag_beetle')) {
                         spawnMonster(deadType, 8680 + Math.random() * 1450, 200 + Math.random() * (WORLD_HEIGHT - 400));
                     } else {
                         spawnMonster(deadType);
@@ -4115,7 +4168,7 @@
 
     // ---- 업그레이드 공통 함수 ----
     const BOSS_GOLD = { boss_orc: 1200, boss_archmage: 2100, boss_dragon: 4200, boss_celestial: 10000, boss_apocalypse: 15000, boss_katydid_1: 40000, boss_katydid_2: 50000, boss_swamp_croc: 80000 };
-    const BOSS_EXP_FRAC = { boss_orc: 1/8, boss_archmage: 1/6, boss_dragon: 1/5, boss_celestial: 1/4, boss_apocalypse: 3/8, boss_katydid_1: 1/2, boss_katydid_2: 2/3, boss_swamp_croc: 1 };
+    const BOSS_EXP_FRAC = { boss_orc: 1/8, boss_archmage: 1/6, boss_dragon: 1/5, boss_celestial: 1/4, boss_apocalypse: 3/8, boss_katydid_1: 1/2, boss_katydid_2: 2/3, boss_swamp_croc: 1, croc_pack: 1 };
     function computeKillExp(type, baseExp) {
         baseExp = Number(baseExp) || 0;
         const frac0 = BOSS_EXP_FRAC[type];
@@ -4128,8 +4181,8 @@
     function getFoodHpGain() { return 20 + player.level * 4; }
     function getMpPotionPrice(tier) {
         const lv = player.level;
-        const lvScale = 1 + (lv - 1) * 0.24;
-        const basePrices = { 100: 20, 200: 40, 300: 70, 400: 110, 500: 155 };
+        const lvScale = 1 + (lv - 1) * 0.12;
+        const basePrices = { 100: 20, 200: 40, 300: 70, 400: 110, 500: 155, 1000: 280 };
         return Math.floor((basePrices[tier] || 20) * lvScale);
     }
     function normalizeMpPotions() {
@@ -4140,7 +4193,7 @@
         }
     }
     function cycleMpPotionTier() {
-        const tiers = [100, 200, 300, 400, 500];
+        const tiers = [100, 200, 300, 400, 500, 1000];
         const idx = tiers.indexOf(player.selectedMpTier || 100);
         player.selectedMpTier = tiers[(idx + 1) % tiers.length];
         addFloatingText(player.x, player.y - 40, `🧪 4번 키 물약 전환: +${player.selectedMpTier} MP`, "#38bdf8");
@@ -4209,7 +4262,7 @@
             normalizeMpPotions();
             let mTier = player.selectedMpTier || 100;
             if ((player.potions[`mp${mTier}`] || 0) <= 0) {
-                const foundMp = [100, 200, 300, 400, 500].find(t => (player.potions[`mp${t}`] || 0) > 0);
+                const foundMp = [100, 200, 300, 400, 500, 1000].find(t => (player.potions[`mp${t}`] || 0) > 0);
                 if (!foundMp) {
                     addFloatingText(player.x, player.y - 35, "보유한 마나 물약이 없습니다! 상점에서 구매하세요!", "#38bdf8");
                     return;
@@ -4221,9 +4274,14 @@
             player.mp = Math.min(player.maxMp, player.mp + mTier);
             addFloatingText(player.x, player.y - 35, `+${mTier} MP 회복!`, "#38bdf8");
         } else if (type === 'super' && player.potions.super > 0) {
+            if (player.superCooldown > 0) {
+                addFloatingText(player.x, player.y - 45, `⏳ 각성 물약 쿨타임 중! (${player.superCooldown.toFixed(1)}초 남음)`, "#fbbf24");
+                return;
+            }
             player.potions.super--;
-            player.superBuffTimer = 15.0;
-            addFloatingText(player.x, player.y - 45, "🔥 각성 물약 발동!", "#fde047");
+            player.superBuffTimer = 10.0;
+            player.superCooldown = 30.0;
+            addFloatingText(player.x, player.y - 45, "🔥 각성 물약 발동! (10초)", "#fde047");
         } else if (type === 'food' && player.potions.food > 0) {
             if (player.foodUsedThisLevel >= 10) {
                 addFloatingText(player.x, player.y - 45, "⚠️ 현재 레벨에서는 요리를 10번 모두 먹었습니다! 레벨업 후 드세요!", "#fbbf24");
@@ -4233,9 +4291,25 @@
             player.foodUsedThisLevel++;
             const foodGain = getFoodHpGain();
             player.maxHp += foodGain;
-            player.hp = Math.min(player.maxHp, player.hp + Math.max(200, Math.round(player.maxHp * 0.3)));
-            player.mp = Math.min(player.maxMp, player.mp + Math.max(200, Math.round(player.maxMp * 0.3)));
+            player.hp = Math.min(player.maxHp, player.hp + Math.max(200, Math.round(player.maxHp * 0.17)));
+            player.mp = Math.min(player.maxMp, player.mp + Math.max(200, Math.round(player.maxMp * 0.17)));
             addFloatingText(player.x, player.y - 45, `🍖 최대 HP +${foodGain} & 에너지 회복! (${player.foodUsedThisLevel}/10회)`, "#fb923c");
+        } else if (type === 'staff') {
+            if ((player.potions.staff || 0) <= 0) {
+                addFloatingText(player.x, player.y - 45, "보유한 지팡이 강화석이 없습니다! 상점에서 구매하세요!", "#c084fc");
+                return;
+            }
+            if ((player.staffBoughtThisLevel || 0) >= 10) {
+                addFloatingText(player.x, player.y - 45, "⚠️ 이번 레벨에서는 강화석을 10번 모두 썼습니다! 레벨업 후 쓰세요!", "#fbbf24");
+                return;
+            }
+            const staffGain = getStaffGain();
+            player.potions.staff--;
+            player.staffLevel++;
+            player.atk += staffGain;
+            player.staffAtkTotal = (player.staffAtkTotal != null ? player.staffAtkTotal : (player.staffLevel - 1) * 16) + staffGain;
+            player.staffBoughtThisLevel = (player.staffBoughtThisLevel || 0) + 1;
+            addFloatingText(player.x, player.y - 45, `🪄 지팡이 +${player.staffLevel} 강화! 공격력 +${staffGain} (${player.staffBoughtThisLevel}/10)`, "#c084fc");
         } else if (type === 'boots' && player.potions.boots > 0) {
             if (player.bootsCooldown > 0) {
                 addFloatingText(player.x, player.y - 45, `⏳ 신속의 장화 쿨타임 중! (${player.bootsCooldown.toFixed(1)}초 남음)`, "#2dd4bf");
@@ -4243,7 +4317,7 @@
             }
             player.potions.boots--;
             player.speedBootsTimer = 20.0;
-            player.bootsCooldown = 20.0;
+            player.bootsCooldown = 30.0;
             addFloatingText(player.x, player.y - 45, "👟 신속의 장화 발동! (20초간 초고속 질주)", "#2dd4bf");
         } else if (type === 'shield' && player.potions.shield > 0) {
             if (player.shieldCooldown > 0) {
@@ -4261,11 +4335,6 @@
 
     function buyItem(type) {
         const msgEl = document.getElementById('shop-message');
-        if (type === 'staff' && (player.staffBoughtThisLevel || 0) >= 10) {
-            msgEl.textContent = `⚠️ 이번 레벨에서는 지팡이를 10번 모두 강화했습니다! 레벨업 후 다시 강화하세요.`;
-            msgEl.className = "mt-2 text-center text-xs font-bold text-amber-300 h-4";
-            return;
-        }
         if (type === 'shield' && player.potions.shield >= 5) {
             msgEl.textContent = `⚠️ 성스러운 무적 방패는 최대 5개까지만 구매하여 소지할 수 있습니다! (현재 5/5개 보유 중)`;
             msgEl.className = "mt-2 text-center text-xs font-bold text-amber-300 h-4";
@@ -4289,12 +4358,8 @@
             player.foodBoughtCount++;
             msgEl.textContent = `화덕 바비큐 구매 완료! (먹으면 최대 HP +${getFoodHpGain()}) ${remainTxt}`;
         } else if (type === 'staff') {
-            const staffGain = getStaffGain();
-            player.staffLevel++;
-            player.atk += staffGain;
-            player.staffAtkTotal = (player.staffAtkTotal != null ? player.staffAtkTotal : (player.staffLevel - 1) * 16) + staffGain;
-            player.staffBoughtThisLevel = (player.staffBoughtThisLevel || 0) + 1;
-            msgEl.textContent = `지팡이 +${player.staffLevel} 강화 성공! 공격력 +${staffGain} (이번 레벨 ${player.staffBoughtThisLevel}/10) ${remainTxt}`;
+            player.potions.staff = (player.potions.staff || 0) + 1;
+            msgEl.textContent = `지팡이 강화석 구매 완료! (보유 ${player.potions.staff}개 · 9번 키로 사용) ${remainTxt}`;
         }
         msgEl.className = "mt-2 text-center text-xs font-bold text-emerald-400 h-4";
         playSound('potion'); updateHUD();
@@ -4360,17 +4425,19 @@
         document.getElementById('count-mp').textContent = `x${player.potions[`mp${curMpTier}`] || 0}`;
         const selMpLbl = document.getElementById('selected-mp-tier-label');
         if (selMpLbl) selMpLbl.textContent = `[현재 4번 키 장착: +${curMpTier} MP 물약]`;
-        [100, 200, 300, 400, 500].forEach(t => {
+        [100, 200, 300, 400, 500, 1000].forEach(t => {
             const cEl = document.getElementById(`cost-mp-${t}`);
             if (cEl) cEl.textContent = getMpPotionPrice(t);
             const iEl = document.getElementById(`inv-mp-${t}`);
             if (iEl) iEl.textContent = `x${player.potions[`mp${t}`] || 0}`;
         });
         const staffDescEl = document.getElementById('staff-desc-text');
-        if (staffDescEl) staffDescEl.textContent = `마법 공격력 +${getStaffGain()} 영구 상승 (레벨이 오를수록 증가 · 이번 레벨 ${player.staffBoughtThisLevel || 0}/10회)`;
+        if (staffDescEl) staffDescEl.textContent = `미리 여러 개 사 둘 수 있음 · 쓰면 마법 공격력 +${getStaffGain()} 영구 상승 (보유 ${player.potions.staff || 0}개 · 사용은 레벨당 10번, 이번 레벨 ${player.staffBoughtThisLevel || 0}/10)`;
         const foodDescEl = document.getElementById('food-desc-text');
-        if (foodDescEl) foodDescEl.textContent = `HP/MP 최대치의 30% 회복(최소 200) + 최대 HP 영구 +${getFoodHpGain()} (한 레벨당 최대 10번 섭취)`;
-        document.getElementById('count-super').textContent = `x${player.potions.super}`;
+        if (foodDescEl) foodDescEl.textContent = `HP/MP 최대치의 17% 회복(최소 200) + 최대 HP 영구 +${getFoodHpGain()} (한 레벨당 최대 10번 섭취)`;
+        document.getElementById('count-super').textContent = player.superCooldown > 0 ? `${Math.ceil(player.superCooldown)}s (x${player.potions.super})` : `x${player.potions.super}`;
+        const staffCntEl = document.getElementById('count-staff');
+        if (staffCntEl) staffCntEl.textContent = `x${player.potions.staff || 0} (${player.staffBoughtThisLevel || 0}/10)`;
         document.getElementById('count-food').textContent = `x${player.potions.food}`;
 
         const bootsCountEl = document.getElementById('count-boots');
@@ -4430,9 +4497,10 @@
         else if (player.x < 4500) zoneEl.innerHTML = `<i class="fa-solid fa-bolt"></i> 심연의 마법 유적`;
         else if (player.x < 5700) zoneEl.innerHTML = `<i class="fa-solid fa-snowflake"></i> 만년설 얼음 설원`;
         else if (player.x < 7100) zoneEl.innerHTML = `<i class="fa-solid fa-dragon"></i> 붉은 화산 드래곤 둥지`;
-        else if (player.x < 7750) zoneEl.innerHTML = `<i class="fa-solid fa-earth-asia"></i> 별무리 행성`;
-        else if (player.x < 8600) zoneEl.innerHTML = `<i class="fa-solid fa-bugs text-amber-400"></i> 맹독 말벌둥지`;
-        else zoneEl.innerHTML = `<i class="fa-solid fa-locust text-lime-400"></i> 거대 풀숲 둥지`;
+        else if (player.x < 8400) zoneEl.innerHTML = `<i class="fa-solid fa-earth-asia"></i> 별무리 행성`;
+        else if (player.x < 10100) zoneEl.innerHTML = `<i class="fa-solid fa-bugs text-amber-400"></i> 맹독 말벌둥지`;
+        else if (player.x < 11900) zoneEl.innerHTML = `<i class="fa-solid fa-locust text-lime-400"></i> 거대 풀숲 둥지`;
+        else zoneEl.innerHTML = `<i class="fa-solid fa-frog text-teal-300"></i> 그림자 늪`;
 
         const thunderCdEl = document.getElementById('ui-thunder-cd');
         if (thunderCdEl) {
@@ -4487,13 +4555,14 @@
         { type: 'jungle_mantis', name: '🦗 풀숲 대왕 넓적배사마귀', rank: '★★★★★ (거대 풀숲 포식자)', height: '3.8 m', weight: '320.0 kg', habitat: '거대 풀숲 둥지 수풀 지대', bgTheme: '#1a2e05', combatDesc: '양팔의 거대 톱니 낫으로 4갈래 바람 검기 연속 발사', lore: '말벌둥지 너머 거대 풀숲에 서식하는 상위 포식자. 풀잎처럼 위장하고 있다가 4갈래의 날카로운 초록 검기를 날려 사냥감을 베어낸다.' },
         { type: 'rhino_beetle', name: '🪲 금강불괴 헤라클레스 장수풍뎅이', rank: '★★★★★ (거대 풀숲 중장갑충)', height: '4.5 m', weight: '980.0 kg', habitat: '거대 풀숲 둥지 참나무 수액 지대', bgTheme: '#271a07', combatDesc: '헤라클레스 뿔 초고속 돌진 + 3갈래 황금 충격파 발사', lore: '어떤 마법에도 쉽게 뚫리지 않는 금강불괴의 등껍질과 거대한 집게 뿔을 지닌 장수풍뎅이. 사슴벌레보다 한층 강력한 돌진력과 체력을 자랑한다.' },
         { type: 'blood_mosquito', name: '🦟 풀숲 맹독 흡혈모기', rank: '★★★★★ (초고속 흡혈 해충)', height: '1.9 m', weight: '42.0 kg', habitat: '거대 풀숲 둥지 전역', bgTheme: '#2e0914', combatDesc: '초고속 비행 접근 후 몸에 딱 달라붙어 죽을 때까지 지속 흡혈 공격!', lore: '매우 빠른 속도로 날아와 마법사의 몸에 찰싹 달라붙는 공포의 흡혈모기. 한 번 달라붙으면 죽을 때까지 떨어지지 않고 날카로운 침으로 피를 빨아먹으며 자신의 체력을 채운다!' },
-        { type: 'boss_katydid_1', name: '★★★★★ 풀숲의 폭군 대왕여치 그린조', rank: '★★★★★ (거대 풀숲 지배자 보스)', height: '12.8 m', weight: '5,400.0 kg', habitat: '거대 풀숲 둥지 북쪽 덩굴 보스방', bgTheme: '#1a2e05', combatDesc: '고공 도약(마법·펫 탄환 완전 회피!) + 착지 후 강철턱 깨물기 + 날개 털기 충격파', lore: '여왕말벌에 맞먹는 거대한 덩치를 지닌 풀숲의 첫 번째 여치 보스. 경이로운 뒷다리 각력으로 허공으로 훌쩍 점프해 날아오는 마법과 펫의 공격을 가볍게 피한 뒤, 주인공 바로 앞에 착지해 무시무시한 턱으로 깨문다.' },
-        { type: 'boss_katydid_2', name: '★★★★★ 심록의 포식자 황제여치 베르단트', rank: '★★★★★ (아르카나 최강 곤충 군주)', height: '16.4 m', weight: '9,600.0 kg', habitat: '거대 풀숲 둥지 최심부 왕좌', bgTheme: '#052e16', combatDesc: '초고속 연속 점프 회피 + 초강력 턱 깨물기 + 9갈래 날개 털기 음파 폭풍', lore: '거대 풀숲 가장 깊은 곳을 지배하는 최강의 황제 여치. 마법사가 마법을 쏘면 높이 점프해 허공에서 회피하며 덮쳐오고, 주기적으로 거대한 초록 날개를 세차게 털어 피하기 힘든 원거리 음파 칼날을 방사한다.' },
-        { type: 'swamp_dragonfly', name: '🪰 거대 늪잠자리', rank: '★★★★☆ (늪지 하늘의 사냥꾼)', height: '1.9 m', weight: '24.0 kg', habitat: '그림자 늪 상공', bgTheme: '#042f2e', combatDesc: '빠른 비행 접근 + 날카로운 턱 물기', lore: '그림자 늪의 짙은 안개 위를 날아다니는 거대한 잠자리. 투명한 날개 네 장으로 순식간에 다가와 먹잇감을 물어뜯는다. 커다란 겹눈 때문에 뒤에서 몰래 다가가기도 어렵다.' },
-        { type: 'swamp_toad', name: '🐸 늪 독두꺼비', rank: '★★★★☆ (늪지 독샘의 주인)', height: '1.6 m', weight: '210.0 kg', habitat: '그림자 늪 물웅덩이 주변', bgTheme: '#1a2e05', combatDesc: '보라색 독 뱉기(원거리) + 가까이 오면 물기', lore: '등에 보라색 독샘이 잔뜩 돋아난 늪의 두꺼비. 턱주머니를 크게 부풀렸다가 멀리까지 독을 뱉는다. 느릿느릿하지만 맷집이 좋아 쉽게 쓰러지지 않는다.' },
+        { type: 'boss_katydid_1', name: '★★★★★ 풀숲의 폭군 대왕여치 그린조', rank: '★★★★★ (거대 풀숲 지배자 보스)', height: '12.8 m', weight: '5,400.0 kg', habitat: '거대 풀숲 둥지 북쪽 덩굴 보스방', bgTheme: '#1a2e05', combatDesc: '고공 도약(마법·펫 탄환 완전 회피!) + 착지 후 강철턱 깨물기 + 날개 털기 충격파 · 체력 절반 이하면 붉게 분노(공격력 폭증·피해 감소·회피)', lore: '여왕말벌에 맞먹는 거대한 덩치를 지닌 풀숲의 첫 번째 여치 보스. 경이로운 뒷다리 각력으로 허공으로 훌쩍 점프해 날아오는 마법과 펫의 공격을 가볍게 피한 뒤, 주인공 바로 앞에 착지해 무시무시한 턱으로 깨문다.' },
+        { type: 'boss_katydid_2', name: '★★★★★ 심록의 포식자 황제여치 베르단트', rank: '★★★★★ (아르카나 최강 곤충 군주)', height: '16.4 m', weight: '9,600.0 kg', habitat: '거대 풀숲 둥지 최심부 왕좌', bgTheme: '#052e16', combatDesc: '초고속 연속 점프 회피 + 초강력 턱 깨물기 + 9갈래 날개 털기 음파 폭풍 · 체력 절반 이하면 붉게 분노(공격력 폭증·피해 감소·회피)', lore: '거대 풀숲 가장 깊은 곳을 지배하는 최강의 황제 여치. 마법사가 마법을 쏘면 높이 점프해 허공에서 회피하며 덮쳐오고, 주기적으로 거대한 초록 날개를 세차게 털어 피하기 힘든 원거리 음파 칼날을 방사한다.' },
+        { type: 'swamp_dragonfly', name: '🪰 거대 늪잠자리', rank: '★★★★☆ (늪지 하늘의 사냥꾼)', height: '1.9 m', weight: '24.0 kg', habitat: '그림자 늪 상공', bgTheme: '#042f2e', combatDesc: '나보다 빠른 비행으로 딱 붙어서 연속 물기', lore: '그림자 늪의 짙은 안개 위를 날아다니는 거대한 잠자리. 투명한 날개 네 장으로 순식간에 다가와 먹잇감을 물어뜯는다. 커다란 겹눈 때문에 뒤에서 몰래 다가가기도 어렵다.' },
+        { type: 'swamp_toad', name: '🐸 늪 독두꺼비', rank: '★★★★☆ (늪지 독샘의 주인)', height: '1.6 m', weight: '210.0 kg', habitat: '그림자 늪 물웅덩이 주변', bgTheme: '#1a2e05', combatDesc: '빠른 보라색 독 뱉기 + 긴 혀로 후려치기 + 물기', lore: '등에 보라색 독샘이 잔뜩 돋아난 늪의 두꺼비. 턱주머니를 크게 부풀렸다가 멀리까지 독을 뱉는다. 느릿느릿하지만 맷집이 좋아 쉽게 쓰러지지 않는다.' },
         { type: 'swamp_viper', name: '🐍 늪 독사', rank: '★★★★☆ (진흙 속 매복자)', height: '5.2 m', weight: '95.0 kg', habitat: '그림자 늪 진흙밭', bgTheme: '#1c1917', combatDesc: '세 갈래 독 뱉기(원거리)', lore: '진흙 속에 똬리를 틀고 숨어 있다가 고개를 쳐들고 독을 세 갈래로 뿜어내는 커다란 독사. 혀를 날름거리며 먹잇감의 냄새를 맡는다.' },
-        { type: 'giant_water_bug', name: '🪲 물장군', rank: '★★★★★ (늪의 포식 곤충)', height: '3.4 m', weight: '480.0 kg', habitat: '그림자 늪 깊은 물가', bgTheme: '#292524', combatDesc: '갈고리 앞다리로 붙잡기 + 처치할 때까지 체액 흡수', lore: '낙엽처럼 납작한 몸을 가진 늪의 거대 곤충. 갈고리 같은 앞다리로 먹잇감을 꽉 붙잡고 뾰족한 주둥이로 체액을 빨아먹는다. 한번 붙잡히면 물장군을 쓰러뜨릴 때까지 떨어지지 않는다.' },
-        { type: 'boss_swamp_croc', name: '★★★★★★ 늪의 군주 고대 악어', rank: '★★★★★★ (아르카나 최강 보스)', height: '24.0 m', weight: '18,500.0 kg', habitat: '그림자 늪 가장 깊은 곳', bgTheme: '#022c22', combatDesc: '강철 턱 깨물기 + 거대한 꼬리 휘두르기(주변 전체) + 등가시 털기(사방 원거리)', lore: '수천 년 동안 그림자 늪을 다스려 온 고대의 악어. 이끼 낀 비늘과 빛나는 호박색 눈을 가졌다. 무엇이든 한 번에 물어뜯는 강철 턱, 주변을 휩쓰는 꼬리, 사방으로 날아가는 등가시로 늪에 들어온 자를 쓰러뜨린다.' }
+        { type: 'giant_water_bug', name: '🪲 물장군', rank: '★★★★★ (늪의 포식 곤충)', height: '3.4 m', weight: '480.0 kg', habitat: '그림자 늪 깊은 물가', bgTheme: '#292524', combatDesc: '나보다 빠르게 쫓아와 붙잡기 + 처치할 때까지 빠른 체액 흡수', lore: '낙엽처럼 납작한 몸을 가진 늪의 거대 곤충. 갈고리 같은 앞다리로 먹잇감을 꽉 붙잡고 뾰족한 주둥이로 체액을 빨아먹는다. 한번 붙잡히면 물장군을 쓰러뜨릴 때까지 떨어지지 않는다.' },
+        { type: 'boss_swamp_croc', name: '★★★★★★ 늪의 군주 고대 악어', rank: '★★★★★★ (아르카나 최강 보스)', height: '24.0 m', weight: '18,500.0 kg', habitat: '그림자 늪 가장 깊은 곳', bgTheme: '#022c22', combatDesc: '순간이동 깨물기 + 꼬리 휘두르기(주변 전체) + 사방 등가시 · 체력 절반 이하면 붉게 분노(피해 감소·회피·새끼 악어) · 2마리 처치 시 악어떼 4마리', lore: '수천 년 동안 그림자 늪을 다스려 온 고대의 악어. 이끼 낀 비늘과 빛나는 호박색 눈을 가졌다. 무엇이든 한 번에 물어뜯는 강철 턱, 주변을 휩쓰는 꼬리, 사방으로 날아가는 등가시로 늪에 들어온 자를 쓰러뜨린다.' },
+        { type: 'croc_baby', name: '🐊 붉은 새끼 악어', rank: '★★★★★ (분노한 악어의 새끼)', height: '6.0 m', weight: '1,200.0 kg', habitat: '그림자 늪 (분노한 고대 악어 주변)', bgTheme: '#450a0a', combatDesc: '나보다 빠르게 달려와 깨물기', lore: '분노해 붉게 변한 고대 악어가 낳는 새끼들. 어미처럼 온몸이 붉고, 작은 몸집으로 재빠르게 달려들어 물어뜯는다.' }
     ];
 
     let currentPokedexIndex = 0;
@@ -4984,6 +5053,7 @@
         if (player.thunderCooldown > 0) player.thunderCooldown = Math.max(0, player.thunderCooldown - 1/60);
         if (player.homeTeleportCooldown > 0) player.homeTeleportCooldown = Math.max(0, player.homeTeleportCooldown - 1/60);
         if (player.bootsCooldown > 0) player.bootsCooldown = Math.max(0, player.bootsCooldown - 1/60);
+        if (player.superCooldown > 0) player.superCooldown = Math.max(0, player.superCooldown - 1/60);
         if (player.shieldCooldown > 0) player.shieldCooldown = Math.max(0, player.shieldCooldown - 1/60);
         if (player.chatTimer > 0) {
             player.chatTimer = Math.max(0, player.chatTimer - 1/60);
@@ -5127,6 +5197,7 @@
         mpProxyTick();
         for (const m of monsters) {
             const P = mpPickTarget(m);
+            if (m.canEnrage) m.atk = m.enraged ? mpEnragedAtk(m, P) : (m.atkBase || m.atk);
             if (m.hitFlash > 0) m.hitFlash--;
             if (m.attackCooldown > 0) m.attackCooldown--;
             if (m.stabAnim && m.stabAnim > 0) m.stabAnim--;
@@ -5182,7 +5253,7 @@
                         m.y = P.y + Math.sin(m.latchOffsetAngle) * 12;
                         m.walkFrame += 0.5;
                         m.drainTick = (m.drainTick || 0) + 1;
-                        if (m.drainTick >= 34) {
+                        if (m.drainTick >= (m.drainEvery || 34)) {
                             m.drainTick = 0;
                             if (P.shieldBuffTimer > 0) {
                                 addFloatingText(P.x, P.y - 35, "🛡️ 무적 방패로 흡혈 차단!", "#38bdf8");
@@ -5204,6 +5275,7 @@
                     }
                 } else if (m.isKatydidBoss) {
                     if (m.wingFlapAnim && m.wingFlapAnim > 0) m.wingFlapAnim--;
+                    m.meleeCd = m.enraged ? 28 : 45;
 
                     if (m.jumpTimer > 0) {
                         m.jumpTimer--;
@@ -5241,10 +5313,10 @@
                         if (m.jumpCooldown <= 0 && (incomingShot || dist > 160)) {
                             m.jumpDuration = m.type === 'boss_katydid_2' ? 32 : 36;
                             m.jumpTimer = m.jumpDuration;
-                            m.jumpCooldown = m.type === 'boss_katydid_2' ? 75 : 90;
+                            m.jumpCooldown = Math.round((m.type === 'boss_katydid_2' ? 75 : 90) * (m.enraged ? 0.6 : 1));
                             m.jumpStartX = m.x;
                             m.jumpStartY = m.y;
-                            m.jumpTargetX = Math.max(m.leashMinX || 8550, Math.min((m.leashMaxX || WORLD_WIDTH) - 90, P.x + (Math.random() - 0.5) * 40));
+                            m.jumpTargetX = Math.max(m.leashMinX || 10050, Math.min((m.leashMaxX || WORLD_WIDTH) - 90, P.x + (Math.random() - 0.5) * 40));
                             m.jumpTargetY = Math.max(100, Math.min(WORLD_HEIGHT - 100, P.y + (Math.random() - 0.5) * 40));
                             addFloatingText(m.x, m.y - 95, "🦗 여치 보스 고공 점프 회피 & 급습!!", "#a3e635");
                             playSound('nova');
@@ -5252,7 +5324,7 @@
 
                         m.wingFlapWaveTimer = (m.wingFlapWaveTimer || 95) - 1;
                         if (m.wingFlapWaveTimer <= 0) {
-                            m.wingFlapWaveTimer = m.type === 'boss_katydid_2' ? 82 : 96;
+                            m.wingFlapWaveTimer = Math.round((m.type === 'boss_katydid_2' ? 82 : 96) * (m.enraged ? 0.6 : 1));
                             m.wingFlapAnim = 28;
                             const waveCnt = m.rangedPatterns || 7;
                             for (let w = 0; w < waveCnt; w++) {
@@ -5310,18 +5382,37 @@
                 if ((!m.jumpTimer || m.jumpTimer <= 0) && dist < P.radius + m.radius && P.invincibleTimer <= 0 && m.attackCooldown <= 0) {
                     if (m.type === 'ice_golem') m.stabAnim = 24;
                     if (P.shieldBuffTimer > 0) {
-                        m.attackCooldown = 45;
+                        m.attackCooldown = m.meleeCd || 45;
                         addFloatingText(P.x, P.y - 35, "🛡️ 무적 방어!", "#38bdf8");
                     } else {
                         const hitDmg = m.isCroc ? Math.floor(m.atk * 1.3) : m.isKatydidBoss ? Math.floor(m.atk * 1.15) : ((m.isCharger && m.chargeTimer > 0) ? Math.floor(m.atk * 1.35) : m.atk);
                         P.hp -= hitDmg;
                         P.invincibleTimer = 32;
-                        m.attackCooldown = 45;
+                        m.attackCooldown = m.meleeCd || 45;
                         if (!P.isProxy) screenShake = 14;
                         if (m.isCroc) m.biteAnim = 24;
                         addFloatingText(P.x, P.y - 32, m.isCroc ? `🐊 고대 악어의 강철 턱 깨물기!! -${hitDmg}` : m.isKatydidBoss ? `🦗 강철턱 깨물기! -${hitDmg}` : (m.type === 'ice_golem' ? `❄️ 고드름 창 찌르기! -${hitDmg}` : `-${hitDmg}`), '#f43f5e');
                         playSound('hit');
                         if (P.hp <= 0) { handlePlayerDeath(); break; }
+                    }
+                }
+
+                if (m.type === 'swamp_toad') {
+                    m.tongueTimer = (m.tongueTimer == null ? 90 : m.tongueTimer) - 1;
+                    if (m.tongueTimer <= 0 && dist < 290) {
+                        m.tongueTimer = 150;
+                        mpTongue(m.x + Math.cos(ang) * 18, m.y - 6, P.x, P.y - 8);
+                        if (P.shieldBuffTimer > 0) {
+                            if (!P.isProxy) addFloatingText(P.x, P.y - 35, "🛡️ 무적 방어!", "#38bdf8");
+                        } else if (P.invincibleTimer <= 0) {
+                            const tDmg = Math.floor(m.atk * 1.5);
+                            P.hp -= tDmg;
+                            P.invincibleTimer = 30;
+                            if (!P.isProxy) screenShake = 10;
+                            addFloatingText(P.x, P.y - 40, `🐸 독두꺼비 혀 공격!! -${tDmg}`, '#f472b6');
+                            playSound('hit');
+                            if (P.hp <= 0) { handlePlayerDeath(); break; }
+                        }
                     }
                 }
 
@@ -5555,10 +5646,10 @@
         ctx.fillStyle = '#1e1b4b'; ctx.fillRect(3500, 0, 1000, WORLD_HEIGHT);
         ctx.fillStyle = '#0f2942'; ctx.fillRect(4500, 0, 1200, WORLD_HEIGHT);
         ctx.fillStyle = '#2a1215'; ctx.fillRect(5700, 0, 1400, WORLD_HEIGHT);
-        ctx.fillStyle = '#1e1035'; ctx.fillRect(7100, 0, 650, WORLD_HEIGHT);
-        ctx.fillStyle = '#3b2506'; ctx.fillRect(7750, 0, 850, WORLD_HEIGHT);
-        ctx.fillStyle = '#14330a'; ctx.fillRect(8600, 0, 1800, WORLD_HEIGHT);
-        ctx.fillStyle = '#10261f'; ctx.fillRect(10400, 0, WORLD_WIDTH - 10400, WORLD_HEIGHT);
+        ctx.fillStyle = '#1e1035'; ctx.fillRect(7100, 0, 1300, WORLD_HEIGHT);
+        ctx.fillStyle = '#3b2506'; ctx.fillRect(8400, 0, 1700, WORLD_HEIGHT);
+        ctx.fillStyle = '#14330a'; ctx.fillRect(10100, 0, 1800, WORLD_HEIGHT);
+        ctx.fillStyle = '#10261f'; ctx.fillRect(11900, 0, WORLD_WIDTH - 11900, WORLD_HEIGHT);
         for (const sp of swampPools) {
             if (Math.abs(sp.x - player.x) > canvas.width / cameraZoom + 250) continue;
             ctx.fillStyle = 'rgba(13, 148, 136, 0.26)';
@@ -5744,6 +5835,23 @@
                 ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
                 ctx.fill();
             }
+        }
+        const tongues = window.__tongues || [];
+        for (let ti = tongues.length - 1; ti >= 0; ti--) {
+            const tg = tongues[ti];
+            tg.life--;
+            if (tg.life <= 0) { tongues.splice(ti, 1); continue; }
+            const reach = Math.min(1, (14 - tg.life) / 4);
+            const ex = tg.x1 + (tg.x2 - tg.x1) * reach, ey = tg.y1 + (tg.y2 - tg.y1) * reach;
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, tg.life / 5);
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#be185d'; ctx.lineWidth = 9;
+            ctx.beginPath(); ctx.moveTo(tg.x1, tg.y1); ctx.lineTo(ex, ey); ctx.stroke();
+            ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.moveTo(tg.x1, tg.y1); ctx.lineTo(ex, ey); ctx.stroke();
+            ctx.fillStyle = '#ec4899'; ctx.beginPath(); ctx.arc(ex, ey, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
         }
         for (const ep of enemyProjectiles) {
             if (ep.isWebNet) {
@@ -5984,6 +6092,10 @@
     const seenRemoteSkillEvents = {};
     const processedGoldGiftIds = new Set();
 
+    function mpGiftGoldDefault() {
+        if (!window.__lastGiftGold) { try { window.__lastGiftGold = parseInt(localStorage.getItem('arcana_gift_gold') || '0', 10) || 0; } catch (e) {} }
+        return window.__lastGiftGold > 0 ? window.__lastGiftGold : 100;
+    }
     window.addTransferGoldAmount = function(targetUid, delta) {
         const input = document.getElementById(`gift-gold-input-${targetUid}`);
         if (!input) return;
@@ -5993,6 +6105,7 @@
             const cur = parseInt(input.value || '0', 10) || 0;
             input.value = Math.min(player.gold, Math.max(0, cur + delta));
         }
+        window.__lastGiftGold = parseInt(input.value, 10) || 0;
     };
 
     window.sendGoldToPlayer = function(targetUid, targetName) {
@@ -6021,7 +6134,9 @@
         }
         lastBroadcastTime = 0; // 바로 전송
 
-        if (input) input.value = 100;
+        window.__lastGiftGold = amount;
+        try { localStorage.setItem('arcana_gift_gold', String(amount)); } catch (e) {}
+        if (input) input.value = amount;
         if (msgEl) {
             msgEl.textContent = `🎁 [${targetName}]님에게 ${amount.toLocaleString()} G를 양도했습니다! (잔여: ${player.gold.toLocaleString()} G)`;
             msgEl.className = "mt-2.5 text-center text-xs font-bold text-amber-300 h-4";
@@ -6073,6 +6188,7 @@
         const cnt = {};
         for (const m of monsters) { if (m.isMinion) continue; const k = m.spawnKey || m.type; cnt[k] = (cnt[k] || 0) + 1; }
         for (const k in MON_TARGET) {
+            if (k === 'boss_swamp_croc' || k === 'croc_pack') continue; // 악어는 악어떼 순서로 따로 관리
             const missing = MON_TARGET[k] - (cnt[k] || 0) - (mpPendingRespawn[k] || 0);
             for (let i = 0; i < missing; i++) spawnMonster(k);
         }
@@ -6081,7 +6197,7 @@
     function mpSerialize(m) {
         const bits = '' + (m.frozenTimer > 0 ? 1 : 0) + (m.chargeTimer > 0 ? 1 : 0) + (m.chargeWindup > 0 ? 1 : 0) +
             ((m.stabAnim || 0) > 0 ? 1 : 0) + ((m.wingFlapAnim || 0) > 0 ? 1 : 0) + (m.latched ? 1 : 0) + ((m.hitFlash || 0) > 0 ? 1 : 0) +
-            ((m.biteAnim || 0) > 0 ? 1 : 0) + ((m.tailAnim || 0) > 0 ? 1 : 0) + ((m.spikeAnim || 0) > 0 ? 1 : 0);
+            ((m.biteAnim || 0) > 0 ? 1 : 0) + ((m.tailAnim || 0) > 0 ? 1 : 0) + ((m.spikeAnim || 0) > 0 ? 1 : 0) + (m.enraged ? 1 : 0);
         return [m.type, Math.round(m.x), Math.round(m.y), Math.max(0, Math.round(m.hp)),
             Math.round(m.homeX || m.x), Math.round(m.homeY || m.y), bits, Math.round(m.jumpHeight || 0),
             m.chargeTimer > 0 ? Math.round((m.chargeAngle || 0) * 100) / 100 : 0, m.spawnKey || '',
@@ -6139,7 +6255,7 @@
             };
             mpProxies[uid] = p;
         }
-        p.x = rp.x; p.y = rp.y;
+        p.x = rp.x; p.y = rp.y; p.level = rp.level || 1;
         p.shieldBuffTimer = rp.shield ? 1 : 0;
         return p;
     }
@@ -6205,6 +6321,7 @@
         m.biteAnim = b[7] === '1' ? 12 : 0;
         m.tailAnim = b[8] === '1' ? 14 : 0;
         m.spikeAnim = b[9] === '1' ? 12 : 0;
+        m.enraged = b[10] === '1';
         m.jumpHeight = +a[7] || 0;
         m.jumpTimer = m.jumpHeight > 0 ? 1 : 0;
         m.chargeAngle = +a[8] || 0;
@@ -6260,6 +6377,20 @@
         if (d.k === 'ep') {
             const frames = Math.min(8, Math.max(0, (window.serverNow() - d.t) / 16.7));
             enemyProjectiles.push({ x: d.x + d.vx * frames, y: d.y + d.vy * frames, vx: d.vx, vy: d.vy, radius: d.r, damage: d.d, color: d.c, isWebNet: !!d.w, life: Math.max(1, d.l - frames) });
+        } else if (d.k === 'rg') {
+            const frames = Math.min(8, Math.max(0, (window.serverNow() - d.t) / 16.7));
+            for (let k = 0; k < (d.n || 0); k++) {
+                const a = (d.o || 0) + k * Math.PI * 2 / d.n;
+                const vx = Math.cos(a) * d.s, vy = Math.sin(a) * d.s;
+                enemyProjectiles.push({ x: d.x + vx * frames, y: d.y + vy * frames, vx: vx, vy: vy, radius: d.r, damage: d.d, color: d.c, life: Math.max(1, d.l - frames) });
+            }
+        } else if (d.k === 'tp') {
+            mpTeleportFx(d.x1, d.y1, d.x2, d.y2, !!d.e);
+        } else if (d.k === 'tg') {
+            window.__tongues.push({ x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, life: 14 });
+        } else if (d.k === 'an') {
+            addFloatingText(player.x, player.y - 90, String(d.s || ''), d.c || '#f87171');
+            playSound('thunder');
         } else if (d.k === 'lb') {
             createLightningBolt(d.x, d.y, d.c);
         } else if (d.k === 'ft') {
@@ -6359,10 +6490,18 @@
         if (mpRole !== 'client' && now - mpLastRegen >= 250) {
             const dt = mpLastRegen ? Math.min(1, (now - mpLastRegen) / 1000) : 0;
             mpLastRegen = now;
+            const pts = mpPlayerPoints();
             for (const m of monsters) {
+                if (m.type.startsWith('boss') && !m.isMinion) {
+                    // 보스: 근처(900)에 아무도 없은 지 3초 → 1초에 10%씩 회복
+                    if (pts.some(p => Math.hypot(p.x - m.x, p.y - m.y) < 900)) m.lastNearAt = now;
+                    else if (now - (m.lastNearAt || 0) > 3000 && m.hp < m.maxHp) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.10 * dt);
+                }
                 if (m.hp < m.maxHp && now - (m.lastHitAt || 0) > 10000) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.05 * dt);
+                if (m.enraged && m.canEnrage && !m.isPack && m.hp >= m.maxHp) m.enraged = false;
             }
         }
+        if (mpRole !== 'client' && now - mpLastCroc >= 500) { mpLastCroc = now; mpCrocWaveTick(now); }
     }
     (function mpWire() {
         function wire() {
@@ -6411,42 +6550,145 @@
         addFloatingText(m.x, m.y - dy, text, color);
         if (mpRole === 'host') mpQueueFx('ft', { x: Math.round(m.x), y: Math.round(m.y - dy), s: text, c: color });
     }
+
+    // =====================================================================
+    // v6.5: 분노(빨간 상태) · 악어 순간이동/새끼/악어떼 · 두꺼비 혀 · 보스 멀어지면 회복
+    // =====================================================================
+    var crocWave = { lastDeath: null, nextAt: 0, nextPack: false };
+    var mpLastCroc = 0;
+    window.__tongues = window.__tongues || [];
+
+    function mpEnragedAtk(m, P) {
+        const lv = (P && P.level) || player.level || 1;
+        if (m.isCroc) return Math.round(820 * (8 + 0.2 * lv));        // Lv20이면 지금(820)의 12배
+        return Math.round((m.atkBase || m.atk) * (1.5 + 0.05 * lv)); // 여치: Lv20이면 2.5배
+    }
+    function mpEnrage(m) {
+        if (m.enraged) return;
+        m.enraged = true;
+        m.babyTimer = 600;
+        mpCrocSay(m, m.isCroc ? 170 : 130, m.isCroc ? "🔴 고대 악어가 분노해 붉게 변했습니다!!" : "🔴 여치가 분노해 붉게 변했습니다!!", "#f87171");
+        playSound('thunder');
+    }
+    function mpPlayerPoints() {
+        const pts = [];
+        if (player.x > RIVER_X + 20 && player.hp > 0) pts.push(player);
+        const map = window.remotePlayersMap || {};
+        for (const uid in map) {
+            if (uid === window.cloudUserId) continue;
+            const rp = map[uid];
+            if (!rp || rp.away || typeof rp.x !== 'number' || rp.x <= RIVER_X + 20) continue;
+            pts.push(rp);
+        }
+        return pts;
+    }
+    function mpAnnounce(text, color) {
+        addFloatingText(player.x, player.y - 90, text, color);
+        if (mpRole === 'host') mpQueueFx('an', { s: text, c: color });
+    }
+    function mpSpikeRing(x, y, n, off, spd, r, dmg, color, life) {
+        for (let k = 0; k < n; k++) {
+            const a = off + k * Math.PI * 2 / n;
+            enemyProjectiles.push({ x: x, y: y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, radius: r, damage: dmg, color: color, life: life });
+        }
+        if (mpRole === 'host') mpQueueFx('rg', { x: Math.round(x), y: Math.round(y), n: n, o: Math.round(off * 1000) / 1000, s: spd, r: r, d: dmg, c: color, l: life });
+    }
+    function mpTeleportFx(x1, y1, x2, y2, red) {
+        for (let i = 0; i < 14; i++) {
+            const f = i / 13;
+            particles.push({ x: x1 + (x2 - x1) * f + (Math.random() - 0.5) * 30, y: y1 + (y2 - y1) * f + (Math.random() - 0.5) * 20,
+                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, size: 9, color: red ? '#f87171' : '#4d7c0f', life: 20 });
+        }
+    }
+    function mpTongue(x1, y1, x2, y2) {
+        window.__tongues.push({ x1: x1, y1: y1, x2: x2, y2: y2, life: 14 });
+        if (mpRole === 'host') mpQueueFx('tg', { x1: Math.round(x1), y1: Math.round(y1), x2: Math.round(x2), y2: Math.round(y2) });
+    }
+    function mpCrocWaveTick(now) {
+        if (!MON_TARGET) return;
+        let alive = 0;
+        for (const m of monsters) if (m.type === 'boss_swamp_croc') alive++;
+        if (alive > 0) { crocWave.nextAt = 0; return; }
+        if (!crocWave.nextAt) {
+            // 보통 악어 2마리를 잡았으면 → 5초 뒤 악어떼, 악어떼를 잡았으면 → 보스 리젠 시간 뒤 보통 2마리
+            crocWave.nextPack = crocWave.lastDeath === 'normal';
+            crocWave.nextAt = now + (crocWave.nextPack ? 5000 : (crocWave.lastDeath === 'pack' ? Math.round(25000 * 0.75 * mpRespawnMul()) : 1000));
+            return;
+        }
+        if (now < crocWave.nextAt) return;
+        crocWave.nextAt = 0;
+        crocWave.lastDeath = null;
+        if (crocWave.nextPack) {
+            for (let i = 0; i < 4; i++) spawnMonster('croc_pack');
+            mpAnnounce("🐊🐊 악어떼가 나온다!! (붉은 악어 4마리)", "#f87171");
+            playSound('thunder');
+        } else {
+            for (let i = 0; i < 2; i++) spawnMonster('boss_swamp_croc');
+        }
+    }
+
     function mpCrocAI(m, P, ang, dist) {
         if (m.biteAnim > 0) m.biteAnim--;
         if (m.tailAnim > 0) m.tailAnim--;
         if (m.spikeAnim > 0) m.spikeAnim--;
-        // 이동: 깨물 수 있는 거리까지 다가옴
-        if (dist > m.radius * 0.75) {
+        const E = !!m.enraged;
+        m.meleeCd = E ? 26 : 45;
+        // 순간이동 깨물기: 스스슥 → 바로 앞에 나타나서 깨물기
+        m.tpTimer = (m.tpTimer == null ? 90 : m.tpTimer) - 1;
+        if (m.tpTimer <= 0 && dist > m.radius * 0.9 && dist < 860) {
+            m.tpTimer = E ? 90 : 180;
+            const a2 = Math.atan2(m.y - P.y, m.x - P.x);
+            const ox = m.x, oy = m.y;
+            m.x = Math.max(m.leashMinX || RIVER_X + 100, Math.min(WORLD_WIDTH - 80, P.x + Math.cos(a2) * m.radius * 0.55));
+            m.y = Math.max(90, Math.min(WORLD_HEIGHT - 90, P.y + Math.sin(a2) * m.radius * 0.45));
+            m.attackCooldown = Math.min(m.attackCooldown || 0, 6);
+            m.biteAnim = 24;
+            mpTeleportFx(ox, oy, m.x, m.y, E);
+            if (mpRole === 'host') mpQueueFx('tp', { x1: Math.round(ox), y1: Math.round(oy), x2: Math.round(m.x), y2: Math.round(m.y), e: E ? 1 : 0 });
+            if (Math.random() < 0.4) mpCrocSay(m, 125, "🐊 스스슥! 순간이동 깨물기!!", E ? "#f87171" : "#bef264");
+            playSound('nova');
+        } else if (dist > m.radius * 0.75) {
             m.x += Math.cos(ang) * m.speed;
             m.y += Math.sin(ang) * m.speed;
-            m.walkFrame += 0.18;
+            m.walkFrame += 0.24;
         }
         // 꼬리 휘두르기: 가까이 있으면 가끔, 주변 모두에게
         m.tailTimer = (m.tailTimer || 200) - 1;
         if (m.tailTimer <= 0 && dist < 330) {
-            m.tailTimer = 260 + Math.floor(Math.random() * 80);
+            m.tailTimer = E ? 170 + Math.floor(Math.random() * 40) : 260 + Math.floor(Math.random() * 80);
             m.tailAnim = 34;
-            mpCrocSay(m, 120, "🐊 거대한 꼬리 휘두르기!!", "#bef264");
+            mpCrocSay(m, 120, "🐊 거대한 꼬리 휘두르기!!", E ? "#fca5a5" : "#bef264");
             playSound('nova');
             for (let i = 0; i < 16; i++) {
                 const a = i / 16 * Math.PI * 2;
-                particles.push({ x: m.x + Math.cos(a) * 170, y: m.y + Math.sin(a) * 100, vx: Math.cos(a) * 3, vy: Math.sin(a) * 2, size: 7, color: '#84cc16', life: 22 });
+                particles.push({ x: m.x + Math.cos(a) * 170, y: m.y + Math.sin(a) * 100, vx: Math.cos(a) * 3, vy: Math.sin(a) * 2, size: 7, color: E ? '#ef4444' : '#84cc16', life: 22 });
             }
             mpCrocHitAround(m, 330, Math.floor(m.atk * 0.95), "🐊 꼬리에 맞았습니다!");
         }
-        // 가시 털기: 등가시를 사방으로 발사 (원거리)
-        m.spikeTimer = (m.spikeTimer || 160) - 1;
+        // 가시 털기: 사방으로 (보통 2~2.5초마다 32방향, 분노 1초마다 40방향)
+        m.spikeTimer = (m.spikeTimer || 120) - 1;
         if (m.spikeTimer <= 0 && dist < 900) {
-            m.spikeTimer = 210 + Math.floor(Math.random() * 60);
+            m.spikeTimer = E ? 60 + Math.floor(Math.random() * 10) : 120 + Math.floor(Math.random() * 30);
             m.spikeAnim = 26;
-            const n = 20;
-            const off = Math.random() * Math.PI * 2;
-            for (let k = 0; k < n; k++) {
-                const a = off + k * Math.PI * 2 / n;
-                mpSpawnEnemyProj({ x: m.x, y: m.y - 30, vx: Math.cos(a) * 7.2, vy: Math.sin(a) * 7.2, radius: 11, damage: Math.floor(m.atk * 0.6), color: '#e7e5c4', life: 100 });
-            }
-            mpCrocSay(m, 140, "🐊 등가시 털기!! (사방으로 가시 발사)", "#fde68a");
+            mpSpikeRing(m.x, m.y - 30, E ? 40 : 32, Math.random() * Math.PI * 2, 7.4, 11, Math.floor(m.atk * 0.6), E ? '#fca5a5' : '#e7e5c4', 100);
+            if (Math.random() < 0.35) mpCrocSay(m, 140, "🐊 등가시 털기!!", "#fde68a");
             playSound('shoot');
+        }
+        // 빨간 새끼 악어: 분노 10초 뒤부터 15초마다 3마리 (한 마리당 최대 6마리)
+        if (E && mpRole !== 'client') {
+            m.babyTimer = (m.babyTimer == null ? 600 : m.babyTimer) - 1;
+            if (m.babyTimer <= 0) {
+                m.babyTimer = 900;
+                const have = monsters.filter(b => b.isCrocBaby && b.motherNid === m.nid).length;
+                const cnt = Math.min(3, 6 - have);
+                for (let s = 0; s < cnt; s++) {
+                    const sa = Math.random() * Math.PI * 2;
+                    spawnMonster('croc_baby', m.x + Math.cos(sa) * 150, m.y + Math.sin(sa) * 90);
+                    const b = monsters[monsters.length - 1];
+                    if (b && b.isCrocBaby) { b.motherNid = m.nid; b.homeX = m.x; b.homeY = m.y; }
+                }
+                if (cnt > 0) mpCrocSay(m, 160, `🐊 붉은 새끼 악어 ${cnt}마리가 태어났습니다!!`, "#f87171");
+            }
         }
     }
 
@@ -6592,10 +6834,12 @@
         { key: 'mp300', label: '마나 물약(300)' },
         { key: 'mp400', label: '마나 물약(400)' },
         { key: 'mp500', label: '마나 물약(500)' },
+        { key: 'mp1000', label: '마나 물약(1000)' },
         { key: 'super', label: '각성 물약' },
         { key: 'food', label: '바비큐' },
         { key: 'boots', label: '신속 장화' },
-        { key: 'shield', label: '무적 방패' }
+        { key: 'shield', label: '무적 방패' },
+        { key: 'staff', label: '지팡이 강화석' }
     ];
     function giftItemLabel(key) { const it = GIFT_ITEMS.find(i => i.key === key); return it ? it.label : key; }
     function giftItemHave(key) {
@@ -6848,9 +7092,10 @@
                             <span class="text-[10px] text-emerald-300">펫 ${(rp.petsList || []).length}마리</span>
                         </div>
                         <div class="flex items-center gap-1 flex-wrap">
-                            <input id="gift-gold-input-${uid}" type="number" min="1" value="100" class="w-20 px-2 py-1 rounded bg-slate-950 border border-amber-400 text-amber-300 font-black text-xs" />
+                            <input id="gift-gold-input-${uid}" type="number" min="1" value="${mpGiftGoldDefault()}" oninput="window.__lastGiftGold = parseInt(this.value, 10) || 0" class="w-20 px-2 py-1 rounded bg-slate-950 border border-amber-400 text-amber-300 font-black text-xs" />
                             <button onclick="window.addTransferGoldAmount('${uid}', 100)" class="px-1.5 py-1 rounded bg-slate-800 border border-slate-600 text-[10px] text-amber-200 font-bold">+100</button>
                             <button onclick="window.addTransferGoldAmount('${uid}', 500)" class="px-1.5 py-1 rounded bg-slate-800 border border-slate-600 text-[10px] text-amber-200 font-bold">+500</button>
+                            <button onclick="window.addTransferGoldAmount('${uid}', 1000)" class="px-1.5 py-1 rounded bg-slate-800 border border-slate-600 text-[10px] text-amber-200 font-bold">+1000</button>
                             <button onclick="window.addTransferGoldAmount('${uid}', 'MAX')" class="px-1.5 py-1 rounded bg-slate-800 border border-amber-500 text-[10px] text-amber-300 font-bold">전액</button>
                             <button onclick="window.sendGoldToPlayer('${uid}', '${safeName}')" class="game-btn px-2.5 py-1 rounded text-[11px] font-black text-white flex items-center gap-1">
                                 <i class="fa-solid fa-hand-holding-dollar text-amber-300"></i> 골드 양도
@@ -6926,6 +7171,7 @@
         if (e.code === 'Digit6') usePotion('food');
         if (e.code === 'Digit7') usePotion('boots');
         if (e.code === 'Digit8') usePotion('shield');
+        if (e.code === 'Digit9') usePotion('staff');
         if (e.code === 'KeyQ') castNovaSkill();
         if (e.code === 'KeyH') toggleHomeModal();
         if (e.code === 'KeyB') togglePokedexModal();
