@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v7.2">
+    <meta name="game-version" content="v7.3">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -7958,16 +7958,30 @@
     })();
 
     let mpFpsFrames = 0, mpFpsLast = performance.now();
+    // 게임 속 시간은 화면 fps와 상관없이 1초에 정확히 60번 계산 (느린 기기·120Hz 기기 모두 같은 속도)
+    const GAME_STEP_MS = 1000 / 60;
+    let gameAccMs = 0, gameLastMs = 0;
     function gameLoop() {
         mpFpsFrames++;
-        { const fpsNow = performance.now(); if (fpsNow - mpFpsLast >= 1000) { window.__fps = Math.round(mpFpsFrames * 1000 / (fpsNow - mpFpsLast)); mpFpsFrames = 0; mpFpsLast = fpsNow; } }
-        // 갤럭시 천지인 등 모바일 가상 키보드로 입력창에 글자를 조합 중일 때는 60FPS 캔버스 리페인트를 잠시 멈춰 자모 역전('ㅣㅇ') 현상을 원천 방지
+        const nowMs = performance.now();
+        { if (nowMs - mpFpsLast >= 1000) { window.__fps = Math.round(mpFpsFrames * 1000 / (nowMs - mpFpsLast)); mpFpsFrames = 0; mpFpsLast = nowMs; } }
+        let elapsed = gameLastMs ? nowMs - gameLastMs : GAME_STEP_MS;
+        gameLastMs = nowMs;
+        if (elapsed > 250) elapsed = GAME_STEP_MS;          // 탭을 내렸다 돌아온 경우 한꺼번에 몰아서 계산하지 않음
+        gameAccMs += elapsed;
+        let steps = 0;
+        // 갤럭시 천지인 등 모바일 가상 키보드로 입력창에 글자를 조합 중일 때는 캔버스 리페인트를 잠시 멈춰 자모 역전('ㅣㅇ') 현상을 원천 방지
         if (!isTextInputFocused()) {
-            updateGame();
+            while (gameAccMs >= GAME_STEP_MS && steps < 4) { updateGame(); gameAccMs -= GAME_STEP_MS; steps++; }
+            if (steps === 4) gameAccMs = Math.min(gameAccMs, GAME_STEP_MS); // 1초에 15번보다 느린 기기는 조금 느려짐
             drawWorld();
             updateAndDrawPokedexPreview();
         } else if (mpRole === 'host') {
-            updateGame(); // 방장이 채팅·이름을 입력하는 동안에도 다른 사람들의 몬스터는 계속 움직임
+            // 방장이 채팅·이름을 입력하는 동안에도 다른 사람들의 몬스터는 계속 움직임
+            while (gameAccMs >= GAME_STEP_MS && steps < 4) { updateGame(); gameAccMs -= GAME_STEP_MS; steps++; }
+            if (steps === 4) gameAccMs = Math.min(gameAccMs, GAME_STEP_MS);
+        } else {
+            gameAccMs = 0;
         }
         requestAnimationFrame(gameLoop);
     }
