@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v7">
+    <meta name="game-version" content="v7.1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -6867,12 +6867,12 @@
             mpLastRegen = now;
             const pts = mpPlayerPoints();
             for (const m of monsters) {
-                if (m.type.startsWith('boss') && !m.isMinion) {
-                    // 보스: 근처(900)에 아무도 없은 지 3초 → 1초에 10%씩 회복
-                    if (pts.some(p => Math.hypot(p.x - m.x, p.y - m.y) < 900)) m.lastNearAt = now;
-                    else if (now - (m.lastNearAt || 0) > 3000 && m.hp < m.maxHp) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.10 * dt);
-                }
-                if (m.hp < m.maxHp && now - (m.lastHitAt || 0) > 10000) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.05 * dt);
+                // 싸우는 중(쫓아올 수 있는 거리 안에 마법사가 있음)에는 회복 없음.
+                // 아무도 없은 지 3초가 지나면 회복 시작: 보스 1초에 10%, 일반 몬스터 1초에 5%
+                const isBossMon = m.type.startsWith('boss') && !m.isMinion;
+                const range = m.isSupremeBoss ? 860 : 540;
+                if (pts.some(p => Math.hypot(p.x - m.x, p.y - m.y) < range)) m.lastNearAt = now;
+                else if (now - (m.lastNearAt || 0) > 3000 && m.hp < m.maxHp) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * (isBossMon ? 0.10 : 0.05) * dt);
                 if (m.enraged && m.canEnrage && !m.isPack && m.hp >= m.maxHp) m.enraged = false;
             }
         }
