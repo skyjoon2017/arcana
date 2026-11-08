@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v6.6">
+    <meta name="game-version" content="v7">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -765,6 +765,9 @@
                     <button onclick="teleportTo('swamp'); toggleTopDrawer();" class="p-1.5 rounded-lg bg-teal-950/90 border border-teal-400/90 text-teal-200 font-black flex items-center justify-center gap-1 shadow-[0_0_10px_rgba(45,212,191,0.3)]">
                         <i class="fa-solid fa-frog text-teal-300"></i> 그림자 늪 (악어보스)
                     </button>
+                    <button onclick="teleportTo('golem'); toggleTopDrawer();" class="p-1.5 rounded-lg bg-stone-900/95 border border-orange-500/90 text-orange-200 font-black flex items-center justify-center gap-1 shadow-[0_0_10px_rgba(249,115,22,0.35)]">
+                        <i class="fa-solid fa-mountain text-orange-400"></i> 골렘 마을 (거신보스)
+                    </button>
                     <button onclick="togglePokedexModal(); toggleTopDrawer();" class="col-span-2 p-1.5 rounded-lg bg-rose-950/90 border border-rose-400/80 text-rose-200 font-black flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-book-open text-amber-300"></i> 몬스터 생태 도감 보기 (B키 · <span id="ui-pokedex-drawer">0/26</span>)
                     </button>
@@ -810,6 +813,12 @@
         <div id="webbed-banner" class="hidden px-4 py-1 rounded-full bg-gradient-to-r from-slate-200 via-white to-slate-300 text-slate-950 font-black text-xs shadow-lg border-2 border-purple-500 flex items-center gap-1.5 animate-pulse">
             <i class="fa-solid fa-spider text-purple-700"></i>
             <span>🕸️ 거미줄 속박됨! 이동 불가 (<span id="webbed-timer">2.0</span>초)</span>
+        </div>
+        <div id="stun-banner" class="hidden px-4 py-1 rounded-full bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 text-slate-950 font-black text-xs shadow-lg border-2 border-orange-600 flex items-center gap-1.5 animate-pulse">
+            <span>💫 기절! 이동·공격 불가, 아이템은 사용 가능 (<span id="stun-timer">3.0</span>초)</span>
+        </div>
+        <div id="slow-banner" class="hidden px-4 py-1 rounded-full bg-gradient-to-r from-violet-300 via-purple-200 to-violet-400 text-slate-950 font-black text-xs shadow-lg border-2 border-violet-700 flex items-center gap-1.5">
+            <span>🐢 공격 속도 0.8배 (<span id="slow-timer">3.0</span>초)</span>
         </div>
     </div>
 
@@ -1941,7 +1950,7 @@
         } catch (e) {}
     }
 
-    const WORLD_WIDTH = 13900;
+    const WORLD_WIDTH = 15900;
     const WORLD_HEIGHT = 3200;
     const RIVER_X = 1550;
     const BRIDGE_Y = 1550;
@@ -2094,6 +2103,7 @@
 
     const trees = [];
     const swampPools = [];
+    const golemCracks = [], golemPiles = [], golemHuts = [];
     const rocks = [];
     const flowers = [];
     const monsters = [];
@@ -2124,7 +2134,8 @@
             const tx = RIVER_X + 120 + Math.random() * (WORLD_WIDTH - RIVER_X - 200);
             const ty = 80 + Math.random() * (WORLD_HEIGHT - 160);
             let tType = 'forest';
-            if (tx > 11900) tType = 'swamp';
+            if (tx > 13900) tType = 'golem';
+            else if (tx > 11900) tType = 'swamp';
             else if (tx > 10100) tType = 'grass';
             else if (tx > 7100) tType = 'celestial';
             else if (tx > 5700) tType = 'volcano';
@@ -2138,6 +2149,23 @@
         for (let i = 0; i < 26; i++) {
             swampPools.push({ x: 12000 + Math.random() * 1800, y: 120 + Math.random() * (WORLD_HEIGHT - 240), rx: 60 + Math.random() * 90, ry: 22 + Math.random() * 30 });
         }
+        // 골렘 마을: 주황색 금(가물어 갈라진 땅), 돌무더기, 무너진 돌집
+        for (let i = 0; i < 90; i++) {
+            let x = 13950 + Math.random() * 1900, y = 60 + Math.random() * (WORLD_HEIGHT - 120);
+            const p = [x, y], n = 3 + Math.floor(Math.random() * 4);
+            for (let k = 0; k < n; k++) { x += (Math.random() - 0.5) * 90; y += (Math.random() - 0.5) * 60; p.push(x, y); }
+            golemCracks.push({ x: p[0], p: p, w: 1.2 + Math.random() * 2, a: 0.45 + Math.random() * 0.4 });
+        }
+        for (let i = 0; i < 34; i++) {
+            const px = 14000 + Math.random() * 1820, py = 120 + Math.random() * (WORLD_HEIGHT - 240), sc = 0.9 + Math.random() * 1.1;
+            const r = [];
+            for (let k = 0; k < 6; k++) {
+                const j = []; for (let q = 0; q < 7; q++) j.push(0.75 + Math.random() * 0.35);
+                r.push({ x: px + (Math.random() - 0.5) * 55 * sc, y: py + (Math.random() - 0.5) * 20 * sc, s: (8 + Math.random() * 15) * sc, c: ['#3f3f46', '#44403c', '#57534e', '#292524'][k % 4], j: j });
+            }
+            golemPiles.push({ x: px, r: r });
+        }
+        [[14280, 430, 1.25], [15350, 760, 1.1], [14620, 2520, 1.3], [15500, 2250, 1.0], [14180, 1980, 0.95], [15050, 1250, 0.9]].forEach(q => golemHuts.push({ x: q[0], y: q[1], s: q[2] }));
         for (let i = 0; i < 135; i++) {
             rocks.push({
                 x: 120 + Math.random() * (WORLD_WIDTH - 240),
@@ -2179,6 +2207,12 @@
         for (let i = 0; i < 18; i++) spawnMonster('swamp_toad');
         for (let i = 0; i < 16; i++) spawnMonster('swamp_viper');
         for (let i = 0; i < 14; i++) spawnMonster('giant_water_bug');
+
+        for (let i = 0; i < 22; i++) spawnMonster('golem_pebble');
+        for (let i = 0; i < 18; i++) spawnMonster('golem_thrower');
+        for (let i = 0; i < 16; i++) spawnMonster('golem_roller');
+        for (let i = 0; i < 16; i++) spawnMonster('golem_crystal');
+        for (let i = 0; i < 12; i++) spawnMonster('golem_magma');
 
         spawnMonster('boss_orc');
         spawnMonster('boss_archmage');
@@ -2605,11 +2639,44 @@
             return {
                 type: 'boss_swamp_croc', spawnKey: type, isSwamp: true, swampScale: 3.0, isCroc: true, isPack: isPack, enraged: isPack,
                 name: isPack ? '★★★★★★ 악어떼 · 붉은 고대 악어' : '★★★★★★ 늪의 군주 고대 악어', level: 100,
-                x: s[0], y: BRIDGE_Y + s[1], homeX: s[0], homeY: BRIDGE_Y + s[1], leashMinX: 11950, leashMaxX: WORLD_WIDTH,
+                x: s[0], y: BRIDGE_Y + s[1], homeX: s[0], homeY: BRIDGE_Y + s[1], leashMinX: 11950, leashMaxX: 13850,
                 radius: 145, hp: 660000, maxHp: 660000, atk: 2700, atkBase: 2700, canEnrage: true, speed: 5.8,
                 isRanged: false, isSupremeBoss: true,
                 tailTimer: 200, spikeTimer: 140, tpTimer: 90, babyTimer: 600, biteAnim: 0, tailAnim: 0, spikeAnim: 0,
                 expValue: 30000, goldValue: 80000
+            };
+        } else if (type === 'golem_pebble' || type === 'golem_thrower' || type === 'golem_roller' || type === 'golem_crystal' || type === 'golem_magma' || type === 'golem_lava_imp') {
+            x = 14000 + Math.random() * 1800;
+            y = 200 + Math.random() * (WORLD_HEIGHT - 400);
+            const base = { type: type, isStone: true, x, y, isRanged: false };
+            if (type === 'golem_pebble') return Object.assign(base, { name: '🪨 꼬마 돌멩이 골렘', level: 53, radius: 22, stoneScale: 1.35,
+                hp: 26000, maxHp: 26000, atk: 900, speed: 5.8, meleeCd: 20, expValue: 5200, goldValue: 3130 });
+            if (type === 'golem_thrower') return Object.assign(base, { name: '🪨 바위 투척 골렘', level: 55, radius: 30, stoneScale: 1.9,
+                hp: 34000, maxHp: 34000, atk: 980, speed: 2.0, meleeCd: 20,
+                isRanged: true, rangedColor: '#a8a29f', rangedSpeed: 9.0, rangedInterval: 36, rangedPatterns: 1, projRadius: 11,
+                expValue: 5730, goldValue: 3420 });
+            if (type === 'golem_roller') return Object.assign(base, { name: '🪨 바위 굴렁이', level: 57, radius: 30, stoneScale: 1.9,
+                hp: 40000, maxHp: 40000, atk: 1050, speed: 2.6, meleeCd: 20,
+                isCharger: true, chargeSpeed: 13, chargeCooldown: 120, chargeWindup: 0, chargeTimer: 0, chargeAngle: 0,
+                expValue: 6030, goldValue: 3570 });
+            if (type === 'golem_crystal') return Object.assign(base, { name: '💎 흑요석 수정 골렘', level: 58, radius: 30, stoneScale: 1.9,
+                hp: 36000, maxHp: 36000, atk: 1000, speed: 2.2, meleeCd: 20,
+                isRanged: true, rangedColor: '#fb923c', rangedSpeed: 9.5, rangedInterval: 40, rangedPatterns: 5,
+                expValue: 6000, goldValue: 3630 });
+            if (type === 'golem_magma') return Object.assign(base, { name: '🌋 용암 심장 골렘', level: 60, radius: 40, stoneScale: 2.4,
+                hp: 55000, maxHp: 55000, atk: 1100, speed: 1.6, meleeCd: 24, slamTimer: 120,
+                expValue: 7180, goldValue: 4270 });
+            return Object.assign(base, { name: '🔥 용암 꼬마 골렘', level: 100, radius: 22, stoneScale: 1.5, enraged: true, isMinion: true,
+                hp: 36000, maxHp: 36000, atk: 1800, speed: 6.0, meleeCd: 22, expValue: 1080, goldValue: 700 });
+        } else if (type === 'boss_golem_king') {
+            return {
+                type: 'boss_golem_king', spawnKey: 'boss_golem_king', isStone: true, stoneScale: 3.0, isGolemKing: true,
+                name: '★★★★★★★ 고대 거신 골렘왕', level: 120,
+                x: 15000, y: BRIDGE_Y, leashMinX: 13950, leashMaxX: WORLD_WIDTH,
+                radius: 140, hp: 800000, maxHp: 800000, atk: 4050, atkBase: 4050, canEnrage: true, speed: 5.8,
+                isRanged: false, isSupremeBoss: true, chargeWindup: 0, chargeTimer: 0, chargeAngle: 0,
+                throwAnim: 0, slamAnim: 0, punchAnim: 0,
+                expValue: 45000, goldValue: 120000
             };
         } else if (type === 'croc_baby') {
             return {
@@ -2808,6 +2875,12 @@
         ctx.fillStyle = p === player ? '#fde047' : '#38bdf8';
         ctx.fillText(`Lv.${p.level || 1} ${p.name || '마법사'}`, 0, -54 + bob);
 
+        if (p.stunTimer && p.stunTimer > 0) {
+            ctx.save();
+            ctx.font = '15px sans-serif'; ctx.fillStyle = '#fde047';
+            for (let i = 0; i < 3; i++) { const a = performance.now() * 0.005 + i * 2.1; ctx.fillText('★', Math.cos(a) * 18, -44 + Math.sin(a) * 5 + bob); }
+            ctx.restore();
+        }
         if (p.webbedTimer && p.webbedTimer > 0) {
             ctx.save();
             ctx.strokeStyle = 'rgba(241, 245, 249, 0.92)';
@@ -3165,11 +3238,246 @@
         }
     }
 
+    // =========================================================================
+    // 골렘 마을 몬스터 그림 (오른쪽을 보는 기준, 맞으면 하얗게 번쩍)
+    // =========================================================================
+    function drawGolemMonster(c, m, bob) {
+        const t = performance.now();
+        const W = m.hitFlash > 0;
+        const RAGE = !!m.enraged;
+        const F = (col) => W ? '#ffffff' : col;
+        const PI2 = Math.PI * 2;
+        const frozen = m.frozenTimer && m.frozenTimer > 0;
+        const glow = 0.65 + Math.sin(t * 0.006 + (m.walkFrame || 0)) * 0.35;      // 금(균열) 빛 깜빡임
+        const crack = W ? '#ffffff' : (RAGE ? `rgba(255, 70, 30, ${0.75 + glow * 0.25})` : `rgba(251, 146, 60, ${0.55 + glow * 0.45})`);
+        c.lineCap = 'round'; c.lineJoin = 'round';
+        // 울퉁불퉁한 돌덩이 모양
+        function rock(cx, cy, rx, ry, seed, fill, stroke) {
+            c.beginPath();
+            const n = 9;
+            for (let i = 0; i <= n; i++) {
+                const a = (i % n) / n * PI2;
+                const j = 0.82 + (((Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453) % 1 + 1) % 1) * 0.3;
+                const x = cx + Math.cos(a) * rx * j, y = cy + Math.sin(a) * ry * j;
+                if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+            }
+            c.closePath();
+            c.fillStyle = fill; c.fill();
+            if (stroke) { c.strokeStyle = stroke; c.lineWidth = 1.6; c.stroke(); }
+        }
+        // 빛나는 금(균열)
+        function cracks(lines, w) {
+            c.save();
+            if (!W) { c.shadowColor = RAGE ? '#ef4444' : '#f97316'; c.shadowBlur = 6; }
+            c.strokeStyle = crack; c.lineWidth = w || 1.3;
+            for (const L of lines) { c.beginPath(); c.moveTo(L[0], L[1]); for (let i = 2; i < L.length; i += 2) c.lineTo(L[i], L[i + 1]); c.stroke(); }
+            c.restore();
+        }
+        function eye(x, y, r, col) {
+            c.save(); if (!W) { c.shadowColor = col; c.shadowBlur = 10; }
+            c.fillStyle = W ? '#ffffff' : col; c.beginPath(); c.arc(x, y, r, 0, PI2); c.fill(); c.restore();
+        }
+        const step = frozen ? 0 : Math.sin((m.walkFrame || 0) * 0.8) * 2.2;
+
+        if (m.type === 'golem_pebble' || m.type === 'golem_lava_imp') {
+            // 🪨 꼬마 돌멩이 골렘: 동글동글한 돌 몸, 외눈, 짧은 다리로 종종걸음
+            const hop = frozen ? 0 : Math.abs(Math.sin((m.walkFrame || 0) * 1.2)) * 3;
+            const y = -hop + bob * 0.3;
+            c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(0, 12, 13, 4, 0, 0, PI2); c.fill();
+            if (RAGE && !W) { c.fillStyle = `rgba(239, 68, 68, ${0.18 + glow * 0.12})`; c.beginPath(); c.arc(0, -2 + y, 19, 0, PI2); c.fill(); }
+            c.fillStyle = F(RAGE ? '#292524' : '#3f3f46');
+            c.beginPath(); c.ellipse(-6 - step, 9, 4, 3.5, 0, 0, PI2); c.ellipse(6 + step, 9, 4, 3.5, 0, 0, PI2); c.fill();
+            rock(0, -2 + y, 13, 11.5, 3, F(RAGE ? '#44403c' : '#52525b'), W ? null : '#18181b');
+            rock(-3, -8 + y, 6, 4, 7, F(RAGE ? '#7f1d1d' : '#71717a'));                       // 윗부분 밝은 면
+            cracks([[-9, 2 + y, -4, -1 + y, -6, -5 + y], [4, 6 + y, 7, 1 + y]], 1.1);
+            c.fillStyle = W ? '#fff' : '#18181b'; c.beginPath(); c.ellipse(5, -3 + y, 5, 4.2, 0, 0, PI2); c.fill();
+            eye(6, -3 + y, 2.6, RAGE ? '#ef4444' : '#fb923c');
+            c.fillStyle = F('#3f3f46'); c.beginPath(); c.ellipse(-12, -1 + y + step * 0.5, 3.5, 3, 0, 0, PI2); c.ellipse(11, 3 + y - step * 0.5, 3.2, 2.8, 0, 0, PI2); c.fill();
+
+        } else if (m.type === 'golem_thrower') {
+            // 🪨 바위 투척 골렘: 넓은 어깨, 긴 팔, 머리 위로 바위를 들어 던짐
+            const th = (m.throwAnim || 0) > 0 ? Math.sin(((m.throwAnim || 0) / 20) * Math.PI) : 0;
+            const y = bob * 0.3;
+            c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(0, 15, 20, 5, 0, 0, PI2); c.fill();
+            c.fillStyle = F('#3f3f46');                                     // 다리
+            c.beginPath(); c.roundRect(-10 - step, 4, 8, 11, 2); c.roundRect(3 + step, 4, 8, 11, 2); c.fill();
+            c.save(); c.translate(-12, -12 + y); c.rotate(0.25 - th * 0.4);  // 뒤쪽 팔
+            rock(0, 8, 5.5, 10, 11, F('#3f3f46'), W ? null : '#18181b'); c.restore();
+            rock(0, -6 + y, 15, 13, 5, F('#52525b'), W ? null : '#18181b');   // 몸통
+            rock(-2, -14 + y, 10, 5, 9, F('#71717a'));
+            cracks([[-8, -2 + y, -3, -7 + y, 2, -4 + y, 6, -10 + y], [-4, 4 + y, 1, 0 + y]], 1.3);
+            rock(6, -21 + y, 7.5, 6.5, 2, F('#52525b'), W ? null : '#18181b'); // 머리
+            c.fillStyle = W ? '#fff' : '#18181b'; c.fillRect(6, -23.5 + y, 7, 2.6);
+            eye(10, -22.2 + y, 1.6, '#fdba74');
+            // 앞쪽 팔 + 던질 바위
+            const ax = 12, ay = -12 + y;
+            const armA = -0.3 - th * 2.2;
+            c.save(); c.translate(ax, ay); c.rotate(armA);
+            rock(0, 9, 6, 11, 13, F('#52525b'), W ? null : '#18181b');
+            rock(0, 19, 5.5, 4.5, 4, F('#3f3f46'));                         // 주먹
+            if (th > 0.05) { rock(0, 26, 7, 6, 21, F('#78716c'), W ? null : '#1c1917'); cracks([[-3, 25, 1, 27, 3, 24]], 1); }
+            c.restore();
+            if (!(th > 0.05)) { rock(18, 6 + y, 6, 5, 21, F('#78716c'), W ? null : '#1c1917'); } // 옆에 쥔 바위
+
+        } else if (m.type === 'golem_roller') {
+            // 🪨 바위 굴렁이: 평소엔 등딱지 같은 바위를 진 짐승, 돌진할 땐 공처럼 몸을 말아 굴러옴
+            const rolling = (m.chargeTimer || 0) > 0 || (m.chargeWindup || 0) > 0;
+            const y = bob * 0.3;
+            c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(0, 14, 19, 5, 0, 0, PI2); c.fill();
+            if (rolling) {
+                const spin = (t * 0.03) % PI2;
+                c.save(); c.translate(0, -2); c.rotate(spin);
+                rock(0, 0, 16, 16, 17, F('#57534e'), W ? null : '#1c1917');
+                c.fillStyle = F('#78716c'); for (let i = 0; i < 5; i++) { const a = i / 5 * PI2; c.beginPath(); c.ellipse(Math.cos(a) * 9, Math.sin(a) * 9, 4, 2.6, a, 0, PI2); c.fill(); }
+                cracks([[-12, 0, -4, -3, 3, 2, 12, -1], [0, -13, 2, -5, -1, 4, 1, 13]], 1.5);
+                c.restore();
+                if (!W) { c.fillStyle = 'rgba(120, 113, 108, 0.45)'; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(-18 - i * 6, 10 - (i % 2) * 4, 4 - i * 0.6, 0, PI2); c.fill(); } }
+            } else {
+                c.fillStyle = F('#3f3f46');
+                c.beginPath(); c.ellipse(-10 - step, 9, 4.5, 3.5, 0, 0, PI2); c.ellipse(8 + step, 9, 4.5, 3.5, 0, 0, PI2); c.fill();
+                rock(12, -1 + y, 7, 6, 8, F('#44403c'), W ? null : '#1c1917');  // 머리
+                eye(15, -2 + y, 1.8, '#fb923c');
+                c.fillStyle = W ? '#fff' : '#d6d3d1'; c.beginPath(); c.moveTo(18, 2 + y); c.lineTo(22, 4 + y); c.lineTo(18, 5 + y); c.fill(); // 돌 이빨
+                rock(-3, -5 + y, 17, 12, 17, F('#57534e'), W ? null : '#1c1917');  // 둥근 바위 등
+                c.strokeStyle = W ? '#fff' : '#292524'; c.lineWidth = 1.4;
+                for (let i = -2; i <= 2; i++) { c.beginPath(); c.arc(-3, 6 + y, 15, -Math.PI / 2 - 0.9 + i * 0.35, -Math.PI / 2 - 0.9 + i * 0.35 + 0.01); c.stroke(); }
+                c.beginPath(); c.moveTo(-18, -4 + y); c.quadraticCurveTo(-3, -22 + y, 12, -6 + y); c.stroke();
+                cracks([[-12, -8 + y, -6, -12 + y, 0, -9 + y], [2, -3 + y, 7, -7 + y]], 1.2);
+            }
+
+        } else if (m.type === 'golem_crystal') {
+            // 💎 흑요석 수정 골렘: 검은 유리 같은 몸, 등에 주황빛 수정 가시, 수정 조각을 부채꼴로 발사
+            const y = bob * 0.35;
+            const sh = (m.stabAnim || 0) > 0 ? 1.25 : 1;
+            c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(0, 15, 18, 5, 0, 0, PI2); c.fill();
+            c.fillStyle = F('#1c1917');
+            c.beginPath(); c.moveTo(-9 - step, 3); c.lineTo(-5 - step, 15); c.lineTo(-1 - step, 3); c.fill();
+            c.beginPath(); c.moveTo(2 + step, 3); c.lineTo(6 + step, 15); c.lineTo(10 + step, 3); c.fill();
+            // 몸통: 각진 흑요석
+            c.fillStyle = F('#18181b'); c.strokeStyle = W ? '#fff' : '#52525b'; c.lineWidth = 1.4;
+            c.beginPath(); c.moveTo(-13, 4 + y); c.lineTo(-15, -10 + y); c.lineTo(-6, -20 + y); c.lineTo(8, -19 + y); c.lineTo(14, -6 + y); c.lineTo(10, 5 + y); c.closePath(); c.fill(); c.stroke();
+            c.fillStyle = W ? '#fff' : 'rgba(255,255,255,0.12)'; c.beginPath(); c.moveTo(-6, -20 + y); c.lineTo(8, -19 + y); c.lineTo(0, -10 + y); c.closePath(); c.fill();
+            // 등 수정 가시
+            const cols = ['#fb923c', '#fdba74', '#f97316', '#fed7aa'];
+            [[-14, -10, -24, -24], [-9, -16, -14, -32], [-3, -19, -2, -34], [4, -19, 9, -31]].forEach((p, i) => {
+                const tipX = p[0] + (p[2] - p[0]) * sh, tipY = p[1] + (p[3] - p[1]) * sh;
+                c.save(); if (!W) { c.shadowColor = '#f97316'; c.shadowBlur = 8 * glow; }
+                c.fillStyle = W ? '#fff' : cols[i]; c.beginPath(); c.moveTo(p[0] - 3, p[1] + y); c.lineTo(tipX, tipY + y); c.lineTo(p[0] + 3, p[1] + 1 + y); c.closePath(); c.fill(); c.restore();
+            });
+            rock(10, -15 + y, 6, 5.5, 31, F('#27272a'), W ? null : '#52525b');   // 머리
+            eye(12.5, -16 + y, 1.7, '#fde047');
+            c.fillStyle = F('#18181b'); c.beginPath(); c.ellipse(14, -3 + y, 4.5, 6, -0.4, 0, PI2); c.fill(); // 팔
+
+        } else if (m.type === 'golem_magma') {
+            // 🌋 용암 심장 골렘: 땅딸막한 거구, 가슴에 녹은 용암 심장, 거대한 주먹으로 땅 내려치기
+            const sl = (m.slamAnim || 0) > 0 ? Math.sin(((m.slamAnim || 0) / 24) * Math.PI) : 0;
+            const y = bob * 0.25;
+            c.fillStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.ellipse(0, 16, 24, 6, 0, 0, PI2); c.fill();
+            c.fillStyle = F('#27272a');
+            c.beginPath(); c.roundRect(-13 - step, 4, 10, 12, 3); c.roundRect(3 + step, 4, 10, 12, 3); c.fill();
+            rock(-17, -6 + y - sl * 8, 7, 9, 41, F('#3f3f46'), W ? null : '#09090b');       // 뒤 주먹
+            rock(0, -6 + y, 17, 14, 43, F('#3f3f46'), W ? null : '#09090b');                // 몸통
+            rock(0, -18 + y, 12, 5, 47, F('#52525b'));                                       // 어깨 바위
+            c.save(); if (!W) { c.shadowColor = '#f97316'; c.shadowBlur = 14 * glow; }      // 용암 심장
+            const g = c.createRadialGradient(2, -6 + y, 1, 2, -6 + y, 8);
+            g.addColorStop(0, W ? '#fff' : '#fef08a'); g.addColorStop(0.5, W ? '#fff' : '#fb923c'); g.addColorStop(1, W ? '#fff' : 'rgba(194, 65, 12, 0.2)');
+            c.fillStyle = g; c.beginPath(); c.arc(2, -6 + y, 7.5, 0, PI2); c.fill(); c.restore();
+            cracks([[2, -6 + y, -8, -12 + y, -12, -4 + y], [2, -6 + y, 10, 1 + y], [2, -6 + y, 6, -16 + y]], 1.6);
+            rock(5, -24 + y, 6, 5, 49, F('#52525b'), W ? null : '#09090b');                  // 작은 머리
+            eye(8, -25 + y, 1.5, '#fde047');
+            rock(19, -4 + y - sl * 16, 8, 9.5, 51, F('#52525b'), W ? null : '#09090b');     // 앞 주먹(내려치기)
+            if (sl > 0.6 && !W) { c.fillStyle = 'rgba(251, 146, 60, 0.5)'; c.beginPath(); c.ellipse(20, 14, 16 * sl, 4, 0, 0, PI2); c.fill(); }
+
+        } else if (m.type === 'boss_golem_king') {
+            const em = Math.max(0, m.emergeTimer || 0);
+            if ((m.chargeTimer || 0) > 0 || (m.chargeWindup || 0) > 0) {
+                // 몸을 말아 거대한 바위 공이 되어 굴러옴
+                const spin = (t * 0.025) % PI2;
+                c.fillStyle = 'rgba(0,0,0,0.45)'; c.beginPath(); c.ellipse(0, 20, 40, 9, 0, 0, PI2); c.fill();
+                c.save(); c.translate(0, -12); c.rotate(spin);
+                rock(0, 0, 34, 34, 91, F(RAGE ? '#292524' : '#44403c'), W ? null : '#0c0a09');
+                c.fillStyle = F(RAGE ? '#44403c' : '#57534e'); for (let i = 0; i < 6; i++) { const a = i / 6 * PI2; c.beginPath(); c.ellipse(Math.cos(a) * 20, Math.sin(a) * 20, 8, 5, a, 0, PI2); c.fill(); }
+                cracks([[-28, 0, -10, -6, 6, 4, 28, -2], [0, -28, 4, -10, -2, 8, 2, 28], [-18, -18, 0, 0, 18, 18]], 2);
+                c.restore();
+                if (!W) { c.fillStyle = 'rgba(120, 113, 108, 0.5)'; for (let i = 0; i < 5; i++) { c.beginPath(); c.arc(-40 - i * 10, 14 - (i % 2) * 6, 7 - i, 0, PI2); c.fill(); } }
+                return;
+            }
+            if (em > 0) {
+                // 땅속에서 솟아오르는 중: 땅 위 부분만 보이고 아래는 가려짐
+                const p = 1 - em / 100;
+                c.fillStyle = 'rgba(234, 88, 12, 0.55)'; c.beginPath(); c.ellipse(0, 19, 52, 11, 0, 0, PI2); c.fill();
+                c.save(); c.beginPath(); c.rect(-90, -140, 180, 158); c.clip(); c.translate(0, (1 - p) * 110);
+            }
+            // 🗿 고대 거신 골렘왕: 겹겹이 쌓인 현무암 몸, 빛나는 룬, 바위 왕관, 거대한 두 주먹
+            const th = (m.throwAnim || 0) > 0 ? Math.sin(((m.throwAnim || 0) / 26) * Math.PI) : 0;
+            const sl = (m.slamAnim || 0) > 0 ? Math.sin(((m.slamAnim || 0) / 30) * Math.PI) : 0;
+            const pu = (m.punchAnim || 0) > 0 ? Math.sin(((m.punchAnim || 0) / 18) * Math.PI) : 0;
+            const y = bob * 0.2;
+            const body = RAGE ? '#292524' : '#3f3f46', body2 = RAGE ? '#44403c' : '#52525b', dark = RAGE ? '#0c0a09' : '#18181b';
+            // 기운
+            c.fillStyle = RAGE ? `rgba(239, 68, 68, ${0.2 + glow * 0.12})` : 'rgba(251, 146, 60, 0.12)';
+            c.beginPath(); c.ellipse(0, -8, 58, 46, 0, 0, PI2); c.fill();
+            c.fillStyle = 'rgba(0,0,0,0.45)'; c.beginPath(); c.ellipse(0, 20, 44, 9, 0, 0, PI2); c.fill();
+            // 다리 (굵은 돌기둥)
+            c.fillStyle = F(dark);
+            c.beginPath(); c.roundRect(-22 - step, 4, 15, 17, 4); c.roundRect(6 + step, 4, 15, 17, 4); c.fill();
+            rock(-15 - step, 6, 9, 5, 61, F(body2)); rock(13 + step, 6, 9, 5, 63, F(body2));
+            // 뒤쪽 팔
+            c.save(); c.translate(-26, -24 + y); c.rotate(0.15 - th * 0.3 - sl * 1.6);
+            rock(0, 12, 9, 15, 65, F(body), W ? null : dark); rock(0, 28, 11, 10, 67, F(body2), W ? null : dark); c.restore();
+            // 몸통: 쌓인 바위
+            rock(0, -4 + y, 30, 20, 71, F(body), W ? null : dark);
+            rock(-4, -22 + y, 26, 13, 73, F(body2), W ? null : dark);
+            rock(-14, -8 + y, 10, 8, 75, F(body2));
+            // 룬 문양 + 금
+            cracks([[-18, -2 + y, -10, -8 + y, -2, -3 + y, 6, -10 + y, 14, -5 + y], [-6, 8 + y, 0, 2 + y, 8, 7 + y], [-14, -24 + y, -6, -28 + y, 2, -22 + y]], 1.6);
+            c.save(); if (!W) { c.shadowColor = RAGE ? '#ef4444' : '#fb923c'; c.shadowBlur = 10; }
+            c.strokeStyle = crack; c.lineWidth = 1.8;
+            c.beginPath(); c.arc(0, -6 + y, 6, 0, PI2); c.moveTo(0, -12 + y); c.lineTo(0, 0 + y); c.moveTo(-6, -6 + y); c.lineTo(6, -6 + y); c.stroke(); c.restore();
+            // 분노: 몸에서 흘러내리는 붉은 용암
+            if (RAGE && !W) {
+                c.save(); c.shadowColor = '#ef4444'; c.shadowBlur = 12;
+                const flows = [[-20, -26], [-8, -30], [6, -28], [16, -20], [-24, -6], [22, -4]];
+                flows.forEach((f, i) => {
+                    const len = 14 + ((t * 0.02 + i * 7) % 18);
+                    const lg = c.createLinearGradient(0, f[1] + y, 0, f[1] + len + y);
+                    lg.addColorStop(0, '#fde047'); lg.addColorStop(0.35, '#f97316'); lg.addColorStop(1, 'rgba(220, 38, 38, 0.9)');
+                    c.strokeStyle = lg; c.lineWidth = 3.2;
+                    c.beginPath(); c.moveTo(f[0], f[1] + y); c.quadraticCurveTo(f[0] + Math.sin(i) * 3, f[1] + len * 0.5 + y, f[0] + Math.cos(i) * 2, f[1] + len + y); c.stroke();
+                    c.fillStyle = '#ef4444'; c.beginPath(); c.arc(f[0] + Math.cos(i) * 2, f[1] + len + 1.5 + y, 2.2, 0, PI2); c.fill();
+                });
+                c.restore();
+                c.fillStyle = 'rgba(68, 64, 60, 0.45)';                      // 연기
+                for (let i = 0; i < 3; i++) { const sy = -46 - ((t * 0.03 + i * 12) % 30); c.beginPath(); c.arc(-10 + i * 10 + Math.sin(t * 0.003 + i) * 4, sy + y, 5 + i, 0, PI2); c.fill(); }
+            }
+            // 머리 + 바위 왕관
+            rock(10, -38 + y, 11, 9, 77, F(body2), W ? null : dark);
+            c.fillStyle = F(RAGE ? '#7f1d1d' : '#57534e');
+            [[2, -45], [8, -50], [14, -48], [19, -44]].forEach((p, i) => { c.beginPath(); c.moveTo(p[0] - 3, -43 + y); c.lineTo(p[0], p[1] - (i % 2) * 3 + y); c.lineTo(p[0] + 3, -43 + y); c.fill(); });
+            c.fillStyle = W ? '#fff' : dark; c.fillRect(10, -40 + y, 10, 3.6);
+            eye(14, -38.2 + y, 2, RAGE ? '#ef4444' : '#fdba74'); eye(19, -38.2 + y, 1.6, RAGE ? '#ef4444' : '#fdba74');
+            // 앞쪽 팔: 주먹 내지르기 / 바위 들어 던지기 / 땅 내려치기
+            c.save(); c.translate(24, -24 + y);
+            c.rotate(-0.1 + pu * -1.2 - th * 2.3 - sl * 1.2);
+            rock(0, 12 + pu * 6, 9, 15, 81, F(body), W ? null : dark);
+            rock(0, 29 + pu * 10, 12, 11, 83, F(body2), W ? null : dark);
+            cracks([[-5, 27 + pu * 10, 0, 31 + pu * 10, 5, 26 + pu * 10]], 1.2);
+            if (th > 0.05) { rock(0, 44, 15, 13, 85, F('#78716c'), W ? null : '#1c1917'); cracks([[-6, 42, 0, 46, 6, 41]], 1.3); }
+            c.restore();
+            if (sl > 0.7 && !W) { c.strokeStyle = 'rgba(251, 146, 60, 0.7)'; c.lineWidth = 3; c.beginPath(); c.ellipse(0, 18, 60 * sl, 12 * sl, 0, 0, PI2); c.stroke(); }
+            if (em > 0) {
+                c.restore();
+                c.fillStyle = '#44403c';                                     // 튀는 돌 조각
+                for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI + Math.PI; const r = 30 + ((t * 0.08 + i * 13) % 30); c.beginPath(); c.arc(Math.cos(a) * r * 1.6, 16 + Math.sin(a) * r * 0.6, 3 + (i % 3), 0, PI2); c.fill(); }
+            }
+        }
+    }
+
     function renderMonsterAppearance(targetCtx, m, facing) {
         const isBoss = m.type.startsWith('boss') && !m.isMinion;
         const isMinotaur = m.type === 'minotaur';
         const isDragon = m.type === 'dragon' || m.type === 'lava_titan' || m.type === 'frost_wyvern' || m.type === 'boss_dragon';
-        const scale = m.swampScale ? m.swampScale : m.isKatydidBoss
+        const scale = m.stoneScale ? m.stoneScale : m.swampScale ? m.swampScale : m.isKatydidBoss
             ? (m.katydidScale || 3.0)
             : (m.type === 'ice_golem'
                 ? (m.golemScale || 1.25)
@@ -3189,7 +3497,9 @@
         targetCtx.translate(0, -jumpLift);
         targetCtx.scale(facing * scale, scale);
 
-        if (m.isSwamp) {
+        if (m.isStone) {
+            drawGolemMonster(targetCtx, m, bob);
+        } else if (m.isSwamp) {
             drawSwampMonster(targetCtx, m, bob);
         } else if (m.isKatydidBoss) {
             const isEmperor = m.type === 'boss_katydid_2';
@@ -3891,6 +4201,7 @@
         else if (dest === 'celestial') { player.x = 7200; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🪐 별무리 행성에 진입했습니다!", "#e879f9"); }
         else if (dest === 'hornet_nest') { player.x = 8500; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🐝 맹독 말벌둥지에 진입했습니다!", "#facc15"); }
         else if (dest === 'grass_nest') { player.x = 10250; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🌿 거대 풀숲 둥지에 진입했습니다! (흡혈모기 & 여치보스 주의)", "#a3e635"); }
+        else if (dest === 'golem') { player.x = 14100; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🗿 골렘 마을에 들어왔습니다! (골렘 20마리를 쓰러뜨리면 거신이 깨어납니다)", "#fdba74"); }
         else if (dest === 'swamp') { player.x = 12150; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🐊 그림자 늪에 들어왔습니다! (Lv.45 이상 고레벨 사냥터)", "#5eead4"); }
         for (const pet of pets) { pet.x = player.x; pet.y = player.y; }
         playSound('potion');
@@ -3904,6 +4215,7 @@
     }
 
     function castDirectionalBolt() {
+        if (player.stunTimer > 0) return;
         if (player.shootCooldown > 0) return;
         const lv = player.level;
         const manaCost = player.superBuffTimer > 0 ? 0 : Math.max(1, Math.round(6 + (lv - 1) * 0.8));
@@ -3916,6 +4228,7 @@
 
         const speedReduction = Math.min(33, Math.floor((Math.min(lv, 20) - 1) * 1.35)); // Lv20 이후 고정
         player.shootCooldown = player.superBuffTimer > 0 ? 11 : Math.max(15, 48 - speedReduction);
+        if (player.atkSlowTimer > 0) player.shootCooldown = Math.round(player.shootCooldown * 1.25); // 공격 속도 0.8배
         player.attackAnim = 1.0;
 
         let nearestMonster = null;
@@ -3979,6 +4292,7 @@
     let lastGoldTransferEvent = null;
 
     function castNovaSkill() {
+        if (player.stunTimer > 0) return;
         if (player.novaCooldown > 0 || player.mp < 35) return;
         player.mp -= 35; player.novaCooldown = 6.0; playSound('nova');
         lastNovaEventId = Date.now();
@@ -4016,6 +4330,7 @@
     }
 
     function castThunderStorm() {
+        if (player.stunTimer > 0) { addFloatingText(player.x, player.y - 40, "💫 기절 중에는 공격할 수 없습니다!", "#fde047"); return; }
         if (player.thunderCooldown > 0) {
             addFloatingText(player.x, player.y - 40, `천벌 뇌전 쿨타임 (${player.thunderCooldown.toFixed(1)}초)`, "#fbbf24");
             return;
@@ -4047,6 +4362,7 @@
         if (!m) return;
         dmg = Math.max(0, Math.round(dmg));
         // 방장이 아닌 사람: 방장에게 "때렸다"고 알리고, 화면에는 바로 보여줌
+        if (m.emergeTimer > 0) return;
         if (mpRole === 'client') {
             if (window.MPNet && m.nid) window.MPNet.queueHit(m.nid, dmg, frz || 0);
             const shown = m.enraged && !m.isCrocBaby ? Math.max(1, Math.round(dmg * 0.5)) : dmg;
@@ -4094,7 +4410,8 @@
             mpAddLoot({ x: info.x, y: info.y, gold: m.goldValue, isLifeHeart: false, isGoldBar: false, life: 540 });
 
             if (m.isCroc) crocWave.lastDeath = m.isPack ? 'pack' : 'normal';
-            if (!m.isMinion && deadType !== 'boss_swamp_croc' && deadType !== 'croc_pack') {
+            if (mpIsGolemNormal(m.type)) mpGolemKill(info);
+            if (!m.isMinion && deadType !== 'boss_swamp_croc' && deadType !== 'croc_pack' && deadType !== 'boss_golem_king') {
                 const isBossMob = deadType.startsWith('boss');
                 const respawnDelay = Math.round((isBossMob ? 25000 : (16000 + Math.floor(Math.random() * 3000))) * 0.75 * mpRespawnMul()); // 리젠 25% 단축 + 인원 보정
                 mpPendingRespawn[deadType] = (mpPendingRespawn[deadType] || 0) + 1;
@@ -4167,8 +4484,8 @@
     }
 
     // ---- 업그레이드 공통 함수 ----
-    const BOSS_GOLD = { boss_orc: 1200, boss_archmage: 2100, boss_dragon: 4200, boss_celestial: 10000, boss_apocalypse: 15000, boss_katydid_1: 40000, boss_katydid_2: 50000, boss_swamp_croc: 80000 };
-    const BOSS_EXP_FRAC = { boss_orc: 1/8, boss_archmage: 1/6, boss_dragon: 1/5, boss_celestial: 1/4, boss_apocalypse: 3/8, boss_katydid_1: 1/2, boss_katydid_2: 2/3, boss_swamp_croc: 1, croc_pack: 1 };
+    const BOSS_GOLD = { boss_orc: 1200, boss_archmage: 2100, boss_dragon: 4200, boss_celestial: 10000, boss_apocalypse: 15000, boss_katydid_1: 40000, boss_katydid_2: 50000, boss_swamp_croc: 80000, boss_golem_king: 120000 };
+    const BOSS_EXP_FRAC = { boss_orc: 1/8, boss_archmage: 1/6, boss_dragon: 1/5, boss_celestial: 1/4, boss_apocalypse: 3/8, boss_katydid_1: 1/2, boss_katydid_2: 2/3, boss_swamp_croc: 1, croc_pack: 1, boss_golem_king: 1.5 };
     function computeKillExp(type, baseExp) {
         baseExp = Number(baseExp) || 0;
         const frac0 = BOSS_EXP_FRAC[type];
@@ -4327,6 +4644,7 @@
             player.potions.shield--;
             player.shieldBuffTimer = 10.0;
             player.shieldCooldown = 20.0;
+            player.stunTimer = 0;
             addFloatingText(player.x, player.y - 45, "🛡️ 성스러운 방패 발동! (10초간 완전 무적)", "#38bdf8");
         } else return;
         playSound('potion');
@@ -4500,7 +4818,8 @@
         else if (player.x < 8400) zoneEl.innerHTML = `<i class="fa-solid fa-earth-asia"></i> 별무리 행성`;
         else if (player.x < 10100) zoneEl.innerHTML = `<i class="fa-solid fa-bugs text-amber-400"></i> 맹독 말벌둥지`;
         else if (player.x < 11900) zoneEl.innerHTML = `<i class="fa-solid fa-locust text-lime-400"></i> 거대 풀숲 둥지`;
-        else zoneEl.innerHTML = `<i class="fa-solid fa-frog text-teal-300"></i> 그림자 늪`;
+        else if (player.x < 13900) zoneEl.innerHTML = `<i class="fa-solid fa-frog text-teal-300"></i> 그림자 늪`;
+        else zoneEl.innerHTML = `<i class="fa-solid fa-mountain text-orange-400"></i> 골렘 마을`;
 
         const thunderCdEl = document.getElementById('ui-thunder-cd');
         if (thunderCdEl) {
@@ -4562,7 +4881,14 @@
         { type: 'swamp_viper', name: '🐍 늪 독사', rank: '★★★★☆ (진흙 속 매복자)', height: '5.2 m', weight: '95.0 kg', habitat: '그림자 늪 진흙밭', bgTheme: '#1c1917', combatDesc: '세 갈래 독 뱉기(원거리)', lore: '진흙 속에 똬리를 틀고 숨어 있다가 고개를 쳐들고 독을 세 갈래로 뿜어내는 커다란 독사. 혀를 날름거리며 먹잇감의 냄새를 맡는다.' },
         { type: 'giant_water_bug', name: '🪲 물장군', rank: '★★★★★ (늪의 포식 곤충)', height: '3.4 m', weight: '480.0 kg', habitat: '그림자 늪 깊은 물가', bgTheme: '#292524', combatDesc: '나보다 빠르게 쫓아와 붙잡기 + 처치할 때까지 빠른 체액 흡수', lore: '낙엽처럼 납작한 몸을 가진 늪의 거대 곤충. 갈고리 같은 앞다리로 먹잇감을 꽉 붙잡고 뾰족한 주둥이로 체액을 빨아먹는다. 한번 붙잡히면 물장군을 쓰러뜨릴 때까지 떨어지지 않는다.' },
         { type: 'boss_swamp_croc', name: '★★★★★★ 늪의 군주 고대 악어', rank: '★★★★★★ (아르카나 최강 보스)', height: '24.0 m', weight: '18,500.0 kg', habitat: '그림자 늪 가장 깊은 곳', bgTheme: '#022c22', combatDesc: '순간이동 깨물기 + 꼬리 휘두르기(주변 전체) + 사방 등가시 · 체력 절반 이하면 붉게 분노(피해 감소·회피·새끼 악어) · 2마리 처치 시 악어떼 4마리', lore: '수천 년 동안 그림자 늪을 다스려 온 고대의 악어. 이끼 낀 비늘과 빛나는 호박색 눈을 가졌다. 무엇이든 한 번에 물어뜯는 강철 턱, 주변을 휩쓰는 꼬리, 사방으로 날아가는 등가시로 늪에 들어온 자를 쓰러뜨린다.' },
-        { type: 'croc_baby', name: '🐊 붉은 새끼 악어', rank: '★★★★★ (분노한 악어의 새끼)', height: '6.0 m', weight: '1,200.0 kg', habitat: '그림자 늪 (분노한 고대 악어 주변)', bgTheme: '#450a0a', combatDesc: '나보다 빠르게 달려와 깨물기', lore: '분노해 붉게 변한 고대 악어가 낳는 새끼들. 어미처럼 온몸이 붉고, 작은 몸집으로 재빠르게 달려들어 물어뜯는다.' }
+        { type: 'croc_baby', name: '🐊 붉은 새끼 악어', rank: '★★★★★ (분노한 악어의 새끼)', height: '6.0 m', weight: '1,200.0 kg', habitat: '그림자 늪 (분노한 고대 악어 주변)', bgTheme: '#450a0a', combatDesc: '나보다 빠르게 달려와 깨물기', lore: '분노해 붉게 변한 고대 악어가 낳는 새끼들. 어미처럼 온몸이 붉고, 작은 몸집으로 재빠르게 달려들어 물어뜯는다.' },
+        { type: 'golem_pebble', name: '🪨 꼬마 돌멩이 골렘', rank: '★★★★★ (골렘 마을 떼거리)', height: '1.2 m', weight: '320.0 kg', habitat: '골렘 마을 돌무더기 사이', bgTheme: '#1c1917', combatDesc: '나보다 빠르게 떼로 몰려와 박치기', lore: '골렘 마을 곳곳의 돌무더기에서 깨어난 작은 돌 골렘. 외눈에 주황빛을 번뜩이며 종종걸음으로 달려와 단단한 몸으로 들이받는다.' },
+        { type: 'golem_thrower', name: '🪨 바위 투척 골렘', rank: '★★★★★ (원거리 투척병)', height: '3.0 m', weight: '2,400.0 kg', habitat: '골렘 마을 무너진 돌집 주변', bgTheme: '#1c1917', combatDesc: '머리 위로 바위를 들어 빠르게 연속 투척', lore: '넓은 어깨와 긴 팔을 가진 골렘. 땅에서 바위를 뽑아 머리 위로 치켜든 뒤 쉬지 않고 던져 댄다.' },
+        { type: 'golem_roller', name: '🪨 바위 굴렁이', rank: '★★★★★ (돌진 골렘)', height: '2.2 m', weight: '3,100.0 kg', habitat: '골렘 마을 검은 모래밭', bgTheme: '#1c1917', combatDesc: '공처럼 몸을 말아 굴러서 맹돌진', lore: '둥근 바위 등딱지를 진 골렘 짐승. 먹잇감을 발견하면 몸을 동그랗게 말아 거대한 바위처럼 굴러온다.' },
+        { type: 'golem_crystal', name: '💎 흑요석 수정 골렘', rank: '★★★★★ (수정 사수)', height: '2.8 m', weight: '1,900.0 kg', habitat: '골렘 마을 갈라진 땅 틈', bgTheme: '#1c1917', combatDesc: '등의 주황빛 수정 조각을 5갈래로 발사', lore: '검은 유리처럼 매끈한 흑요석 몸을 가진 골렘. 등에 돋은 주황빛 수정을 떼어 부채꼴로 쏘아 보낸다.' },
+        { type: 'golem_magma', name: '🌋 용암 심장 골렘', rank: '★★★★★ (중장갑 골렘)', height: '3.4 m', weight: '6,800.0 kg', habitat: '골렘 마을 깊은 곳', bgTheme: '#1c1917', combatDesc: '거대한 주먹으로 땅을 내려쳐 주변 전체에 용암 충격파', lore: '가슴 속에 녹은 용암 심장이 이글거리는 거구의 골렘. 느리지만 한번 땅을 내려치면 주변이 모두 흔들린다.' },
+        { type: 'golem_lava_imp', name: '🔥 용암 꼬마 골렘', rank: '★★★★★ (분노한 거신의 부하)', height: '1.4 m', weight: '450.0 kg', habitat: '골렘 마을 (분노한 거신 골렘왕 주변)', bgTheme: '#450a0a', combatDesc: '나보다 빠르게 달려와 박치기', lore: '분노한 거신 골렘왕의 용암에서 솟아난 꼬마 골렘. 온몸의 금이 붉게 달아올라 있다.' },
+        { type: 'boss_golem_king', name: '★★★★★★★ 고대 거신 골렘왕', rank: '★★★★★★★ (아르카나 최강 보스)', height: '26.0 m', weight: '52,000.0 kg', habitat: '골렘 마을 땅속 (골렘 20마리를 쓰러뜨리면 등장)', bgTheme: '#1c1917', combatDesc: '주먹 + 순간이동 + 바위 던지기(맞으면 3초 기절) + 땅 내려치기(3초간 공격 속도 0.8배) + 낙석 비 + 굴러오기 · 체력 절반 이하면 몸에 용암이 흐르며 분노', lore: '골렘 마을 땅속 깊이 잠들어 있던 고대의 거신. 마을의 골렘들이 쓰러지면 땅을 가르고 솟아오른다. 바위 왕관을 쓰고, 몸의 룬이 주황빛으로 타오른다.' }
     ];
 
     let currentPokedexIndex = 0;
@@ -4903,6 +5229,7 @@
     }
 
     function handlePlayerDeath() {
+        player.stunTimer = 0; player.atkSlowTimer = 0;
         player.lives--;
         screenShake = 16;
         if (player.lives > 0) {
@@ -5008,7 +5335,7 @@
         if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
         if (touchJoystick.active && (touchJoystick.dx !== 0 || touchJoystick.dy !== 0)) { dx = touchJoystick.dx; dy = touchJoystick.dy; }
 
-        if (player.webbedTimer > 0 && player.shieldBuffTimer <= 0) {
+        if ((player.webbedTimer > 0 || player.stunTimer > 0) && player.shieldBuffTimer <= 0) {
             dx = 0;
             dy = 0;
             player.isMoving = false;
@@ -5054,6 +5381,11 @@
         if (player.homeTeleportCooldown > 0) player.homeTeleportCooldown = Math.max(0, player.homeTeleportCooldown - 1/60);
         if (player.bootsCooldown > 0) player.bootsCooldown = Math.max(0, player.bootsCooldown - 1/60);
         if (player.superCooldown > 0) player.superCooldown = Math.max(0, player.superCooldown - 1/60);
+        if (player.stunTimer > 0) player.stunTimer = Math.max(0, player.stunTimer - 1/60);
+        if (player.atkSlowTimer > 0) player.atkSlowTimer = Math.max(0, player.atkSlowTimer - 1/60);
+        const stunB = document.getElementById('stun-banner'), slowB = document.getElementById('slow-banner');
+        if (stunB) { stunB.classList.toggle('hidden', !(player.stunTimer > 0)); if (player.stunTimer > 0) document.getElementById('stun-timer').textContent = player.stunTimer.toFixed(1); }
+        if (slowB) { slowB.classList.toggle('hidden', !(player.atkSlowTimer > 0)); if (player.atkSlowTimer > 0) document.getElementById('slow-timer').textContent = player.atkSlowTimer.toFixed(1); }
         if (player.shieldCooldown > 0) player.shieldCooldown = Math.max(0, player.shieldCooldown - 1/60);
         if (player.chatTimer > 0) {
             player.chatTimer = Math.max(0, player.chatTimer - 1/60);
@@ -5198,6 +5530,7 @@
         for (const m of monsters) {
             const P = mpPickTarget(m);
             if (m.canEnrage) m.atk = m.enraged ? mpEnragedAtk(m, P) : (m.atkBase || m.atk);
+            if (m.isStone) { if (m.throwAnim > 0) m.throwAnim--; if (m.slamAnim > 0) m.slamAnim--; if (m.punchAnim > 0) m.punchAnim--; }
             if (m.hitFlash > 0) m.hitFlash--;
             if (m.attackCooldown > 0) m.attackCooldown--;
             if (m.stabAnim && m.stabAnim > 0) m.stabAnim--;
@@ -5346,6 +5679,8 @@
                     }
                 } else if (m.isCroc) {
                     mpCrocAI(m, P, ang, dist);
+                } else if (m.isGolemKing) {
+                    mpGolemKingAI(m, P, ang, dist);
                 } else if (m.isCharger) {
                     if (m.chargeTimer > 0) {
                         m.chargeTimer--;
@@ -5379,24 +5714,34 @@
                     m.walkFrame += 0.2;
                 }
 
-                if ((!m.jumpTimer || m.jumpTimer <= 0) && dist < P.radius + m.radius && P.invincibleTimer <= 0 && m.attackCooldown <= 0) {
+                if (!m.noMelee && (!m.jumpTimer || m.jumpTimer <= 0) && dist < P.radius + m.radius && P.invincibleTimer <= 0 && m.attackCooldown <= 0) {
                     if (m.type === 'ice_golem') m.stabAnim = 24;
                     if (P.shieldBuffTimer > 0) {
                         m.attackCooldown = m.meleeCd || 45;
                         addFloatingText(P.x, P.y - 35, "🛡️ 무적 방어!", "#38bdf8");
                     } else {
-                        const hitDmg = m.isCroc ? Math.floor(m.atk * 1.3) : m.isKatydidBoss ? Math.floor(m.atk * 1.15) : ((m.isCharger && m.chargeTimer > 0) ? Math.floor(m.atk * 1.35) : m.atk);
+                        const hitDmg = (m.isCroc || m.isGolemKing) ? Math.floor(m.atk * 1.3) : m.isKatydidBoss ? Math.floor(m.atk * 1.15) : ((m.isCharger && m.chargeTimer > 0) ? Math.floor(m.atk * 1.35) : m.atk);
                         P.hp -= hitDmg;
                         P.invincibleTimer = 32;
                         m.attackCooldown = m.meleeCd || 45;
                         if (!P.isProxy) screenShake = 14;
                         if (m.isCroc) m.biteAnim = 24;
-                        addFloatingText(P.x, P.y - 32, m.isCroc ? `🐊 고대 악어의 강철 턱 깨물기!! -${hitDmg}` : m.isKatydidBoss ? `🦗 강철턱 깨물기! -${hitDmg}` : (m.type === 'ice_golem' ? `❄️ 고드름 창 찌르기! -${hitDmg}` : `-${hitDmg}`), '#f43f5e');
+                        if (m.isGolemKing) m.punchAnim = 18;
+                        addFloatingText(P.x, P.y - 32, m.isGolemKing ? `🗿 거신의 주먹!! -${hitDmg}` : m.isCroc ? `🐊 고대 악어의 강철 턱 깨물기!! -${hitDmg}` : m.isKatydidBoss ? `🦗 강철턱 깨물기! -${hitDmg}` : (m.type === 'ice_golem' ? `❄️ 고드름 창 찌르기! -${hitDmg}` : `-${hitDmg}`), '#f43f5e');
                         playSound('hit');
                         if (P.hp <= 0) { handlePlayerDeath(); break; }
                     }
                 }
 
+                if (m.type === 'golem_magma') {
+                    m.slamTimer = (m.slamTimer || 120) - 1;
+                    if (m.slamTimer <= 0 && dist < 230) {
+                        m.slamTimer = 200;
+                        m.slamAnim = 24;
+                        mpShockRing(m.x, m.y + 10, 240, '#fb923c');
+                        mpCrocHitAround(m, 230, Math.floor(m.atk * 1.1), "🌋 용암 충격파!");
+                    }
+                }
                 if (m.type === 'swamp_toad') {
                     m.tongueTimer = (m.tongueTimer == null ? 90 : m.tongueTimer) - 1;
                     if (m.tongueTimer <= 0 && dist < 290) {
@@ -5420,6 +5765,7 @@
                     m.rangedTimer++;
                     if (m.rangedTimer >= m.rangedInterval) {
                         m.rangedTimer = 0;
+                        if (m.type === 'golem_thrower') m.throwAnim = 20; else if (m.type === 'golem_crystal') m.stabAnim = 14;
                         const count = m.rangedPatterns || 1;
                         const spread = 0.21;
                         for (let k = 0; k < count; k++) {
@@ -5429,7 +5775,7 @@
                                 x: m.x, y: m.y - 10,
                                 vx: Math.cos(fireAng) * m.rangedSpeed,
                                 vy: Math.sin(fireAng) * m.rangedSpeed,
-                                radius: m.shootsWeb ? 13 : (m.isSupremeBoss ? 11 : (m.type.startsWith('boss') ? 8.5 : 6.5)),
+                                radius: m.projRadius || (m.shootsWeb ? 13 : (m.isSupremeBoss ? 11 : (m.type.startsWith('boss') ? 8.5 : 6.5))),
                                 damage: Math.floor(m.atk * 0.85),
                                 color: m.rangedColor || '#f43f5e',
                                 isWebNet: !!m.shootsWeb,
@@ -5463,7 +5809,7 @@
                     }
                 }
 
-                if (m.isSupremeBoss && !m.isKatydidBoss && !m.isCroc) {
+                if (m.isSupremeBoss && !m.isKatydidBoss && !m.isCroc && !m.isGolemKing) {
                     m.lightningTimer = (m.lightningTimer || 100) - 1;
                     if (m.lightningTimer <= 0) {
                         m.lightningTimer = m.type === 'boss_apocalypse' ? 85 : 105;
@@ -5560,6 +5906,7 @@
             if (gone) remoteShots.splice(i, 1);
         }
 
+        mpGolemTick();
         for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
             const ep = enemyProjectiles[i];
             ep.x += ep.vx; ep.y += ep.vy; ep.life--;
@@ -5649,7 +5996,8 @@
         ctx.fillStyle = '#1e1035'; ctx.fillRect(7100, 0, 1300, WORLD_HEIGHT);
         ctx.fillStyle = '#3b2506'; ctx.fillRect(8400, 0, 1700, WORLD_HEIGHT);
         ctx.fillStyle = '#14330a'; ctx.fillRect(10100, 0, 1800, WORLD_HEIGHT);
-        ctx.fillStyle = '#10261f'; ctx.fillRect(11900, 0, WORLD_WIDTH - 11900, WORLD_HEIGHT);
+        ctx.fillStyle = '#10261f'; ctx.fillRect(11900, 0, 2000, WORLD_HEIGHT);
+        ctx.fillStyle = '#16120f'; ctx.fillRect(13900, 0, WORLD_WIDTH - 13900, WORLD_HEIGHT);
         for (const sp of swampPools) {
             if (Math.abs(sp.x - player.x) > canvas.width / cameraZoom + 250) continue;
             ctx.fillStyle = 'rgba(13, 148, 136, 0.26)';
@@ -5658,6 +6006,7 @@
             ctx.fillStyle = 'rgba(101, 163, 13, 0.55)';
             ctx.beginPath(); ctx.ellipse(sp.x - sp.rx * 0.35, sp.y - sp.ry * 0.1, 9, 5, 0.3, 0, Math.PI * 2); ctx.ellipse(sp.x + sp.rx * 0.25, sp.y + sp.ry * 0.25, 7, 4, -0.4, 0, Math.PI * 2); ctx.fill();
         }
+        if (player.x + canvas.width / cameraZoom + 300 > 13900) mpDrawGolemGround();
 
         ctx.fillStyle = '#a8a29e';
         ctx.fillRect(260, BRIDGE_Y - 42, RIVER_X + 120, 84);
@@ -5836,6 +6185,7 @@
                 ctx.fill();
             }
         }
+        mpDrawGolemFx();
         const tongues = window.__tongues || [];
         for (let ti = tongues.length - 1; ti >= 0; ti--) {
             const tg = tongues[ti];
@@ -5873,6 +6223,13 @@
                 }
                 ctx.stroke();
                 ctx.restore();
+            } else if (ep.color === '#a8a29f') {
+                const rr = ep.radius;
+                ctx.save(); ctx.translate(ep.x, ep.y); ctx.rotate((ep.life || 0) * 0.2);
+                ctx.fillStyle = '#78716c'; ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(-rr, -rr * 0.2); ctx.lineTo(-rr * 0.5, -rr); ctx.lineTo(rr * 0.4, -rr * 0.9); ctx.lineTo(rr, -rr * 0.2); ctx.lineTo(rr * 0.7, rr * 0.7); ctx.lineTo(-rr * 0.3, rr); ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = 'rgba(251, 146, 60, 0.85)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-rr * 0.4, -rr * 0.2); ctx.lineTo(0, rr * 0.2); ctx.lineTo(rr * 0.4, -rr * 0.3); ctx.stroke();
+                ctx.restore();
             } else {
                 ctx.fillStyle = ep.color; ctx.beginPath(); ctx.arc(ep.x, ep.y, ep.radius, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
@@ -5881,6 +6238,12 @@
 
         for (const t of trees) {
             if (Math.abs(t.x - player.x) > (canvas.width / cameraZoom) * 0.85) continue;
+            if (t.type === 'golem') {   // 골렘 마을: 나무 대신 뾰족한 바위 기둥
+                ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(t.x, t.y + 14, t.radius * 0.8, 9, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#3f3a36'; ctx.beginPath(); ctx.moveTo(t.x - t.radius * 0.6, t.y + 14); ctx.lineTo(t.x - t.radius * 0.25, t.y - t.radius * 1.3); ctx.lineTo(t.x + 4, t.y - t.radius * 1.6); ctx.lineTo(t.x + t.radius * 0.35, t.y - t.radius * 0.9); ctx.lineTo(t.x + t.radius * 0.65, t.y + 14); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = 'rgba(251, 146, 60, 0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(t.x - 4, t.y - t.radius); ctx.lineTo(t.x + 3, t.y - t.radius * 0.5); ctx.lineTo(t.x - 2, t.y); ctx.stroke();
+                continue;
+            }
             ctx.fillStyle = '#5c2e0e'; ctx.fillRect(t.x - 6, t.y - 4, 12, 20);
             ctx.fillStyle = t.type === 'swamp' ? '#1e4d3b' : (t.type === 'grass' ? '#4d7c0f' : (t.type === 'ice' ? '#38bdf8' : (t.type === 'volcano' ? '#991b1b' : (t.type === 'celestial' ? '#a21caf' : '#15803d'))));
             ctx.beginPath(); ctx.arc(t.x, t.y - 16, t.radius, 0, Math.PI * 2); ctx.fill();
@@ -6188,7 +6551,7 @@
         const cnt = {};
         for (const m of monsters) { if (m.isMinion) continue; const k = m.spawnKey || m.type; cnt[k] = (cnt[k] || 0) + 1; }
         for (const k in MON_TARGET) {
-            if (k === 'boss_swamp_croc' || k === 'croc_pack') continue; // 악어는 악어떼 순서로 따로 관리
+            if (k === 'boss_swamp_croc' || k === 'croc_pack' || k === 'boss_golem_king') continue; // 악어는 악어떼 순서로 따로 관리
             const missing = MON_TARGET[k] - (cnt[k] || 0) - (mpPendingRespawn[k] || 0);
             for (let i = 0; i < missing; i++) spawnMonster(k);
         }
@@ -6197,11 +6560,12 @@
     function mpSerialize(m) {
         const bits = '' + (m.frozenTimer > 0 ? 1 : 0) + (m.chargeTimer > 0 ? 1 : 0) + (m.chargeWindup > 0 ? 1 : 0) +
             ((m.stabAnim || 0) > 0 ? 1 : 0) + ((m.wingFlapAnim || 0) > 0 ? 1 : 0) + (m.latched ? 1 : 0) + ((m.hitFlash || 0) > 0 ? 1 : 0) +
-            ((m.biteAnim || 0) > 0 ? 1 : 0) + ((m.tailAnim || 0) > 0 ? 1 : 0) + ((m.spikeAnim || 0) > 0 ? 1 : 0) + (m.enraged ? 1 : 0);
+            ((m.biteAnim || 0) > 0 ? 1 : 0) + ((m.tailAnim || 0) > 0 ? 1 : 0) + ((m.spikeAnim || 0) > 0 ? 1 : 0) + (m.enraged ? 1 : 0) +
+            ((m.throwAnim || 0) > 0 ? 1 : 0) + ((m.slamAnim || 0) > 0 ? 1 : 0) + ((m.punchAnim || 0) > 0 ? 1 : 0);
         return [m.type, Math.round(m.x), Math.round(m.y), Math.max(0, Math.round(m.hp)),
             Math.round(m.homeX || m.x), Math.round(m.homeY || m.y), bits, Math.round(m.jumpHeight || 0),
             m.chargeTimer > 0 ? Math.round((m.chargeAngle || 0) * 100) / 100 : 0, m.spawnKey || '',
-            (m.type.startsWith('boss') && !m.isMinion) ? Math.round(m.maxHp) : ''].join('|');
+            (m.type.startsWith('boss') && !m.isMinion) ? Math.round(m.maxHp) : '', m.emergeTimer > 0 ? m.emergeTimer : ''].join('|');
     }
 
     function mpQueueFx(k, data) {
@@ -6322,6 +6686,10 @@
         m.tailAnim = b[8] === '1' ? 14 : 0;
         m.spikeAnim = b[9] === '1' ? 12 : 0;
         m.enraged = b[10] === '1';
+        m.throwAnim = b[11] === '1' ? (m.type === 'golem_thrower' ? 10 : 13) : 0;
+        m.slamAnim = b[12] === '1' ? (m.type === 'golem_magma' ? 12 : 15) : 0;
+        m.punchAnim = b[13] === '1' ? 9 : 0;
+        m.emergeTimer = +a[11] || 0;
         m.jumpHeight = +a[7] || 0;
         m.jumpTimer = m.jumpHeight > 0 ? 1 : 0;
         m.chargeAngle = +a[8] || 0;
@@ -6385,7 +6753,14 @@
                 enemyProjectiles.push({ x: d.x + vx * frames, y: d.y + vy * frames, vx: vx, vy: vy, radius: d.r, damage: d.d, color: d.c, life: Math.max(1, d.l - frames) });
             }
         } else if (d.k === 'tp') {
-            mpTeleportFx(d.x1, d.y1, d.x2, d.y2, !!d.e);
+            mpTeleportFx(d.x1, d.y1, d.x2, d.y2, !!d.e, d.c);
+        } else if (d.k === 'bd') {
+            const el = Math.max(0, Math.min((d.d || 50) - 1, Math.round((window.serverNow() - d.t) / 16.7)));
+            golemBoulders.push({ x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, t: el, d: d.d, r: d.r, stun: !!d.s, sky: !!d.q, host: false });
+        } else if (d.k === 'sw') {
+            window.__rings.push({ x: d.x, y: d.y, r: d.r, c: d.c || '#fb923c', life: 24 });
+        } else if (d.k === 'st') {
+            if (d.u === window.cloudUserId && !(player.shieldBuffTimer > 0)) mpApplyDebuff(d.e, Number(d.s) || 3);
         } else if (d.k === 'tg') {
             window.__tongues.push({ x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, life: 14 });
         } else if (d.k === 'an') {
@@ -6560,14 +6935,14 @@
 
     function mpEnragedAtk(m, P) {
         const lv = (P && P.level) || player.level || 1;
-        if (m.isCroc) return Math.round((m.atkBase || 2700) * 2);     // 빨간 악어: 보통 상태의 2배
+        if (m.isCroc || m.isGolemKing) return Math.round((m.atkBase || m.atk) * 2);   // 빨간 악어 · 골렘왕: 보통 상태의 2배
         return Math.round((m.atkBase || m.atk) * (1.5 + 0.05 * lv)); // 여치: Lv20이면 2.5배
     }
     function mpEnrage(m) {
         if (m.enraged) return;
         m.enraged = true;
         m.babyTimer = 600;
-        mpCrocSay(m, m.isCroc ? 170 : 130, m.isCroc ? "🔴 고대 악어가 분노해 붉게 변했습니다!!" : "🔴 여치가 분노해 붉게 변했습니다!!", "#f87171");
+        mpCrocSay(m, m.isCroc || m.isGolemKing ? 170 : 130, m.isGolemKing ? "🔥 골렘왕의 몸에서 붉은 용암이 흘러내립니다!!" : m.isCroc ? "🔴 고대 악어가 분노해 붉게 변했습니다!!" : "🔴 여치가 분노해 붉게 변했습니다!!", "#f87171");
         playSound('thunder');
     }
     function mpPlayerPoints() {
@@ -6593,11 +6968,11 @@
         }
         if (mpRole === 'host') mpQueueFx('rg', { x: Math.round(x), y: Math.round(y), n: n, o: Math.round(off * 1000) / 1000, s: spd, r: r, d: dmg, c: color, l: life });
     }
-    function mpTeleportFx(x1, y1, x2, y2, red) {
+    function mpTeleportFx(x1, y1, x2, y2, red, col) {
         for (let i = 0; i < 14; i++) {
             const f = i / 13;
             particles.push({ x: x1 + (x2 - x1) * f + (Math.random() - 0.5) * 30, y: y1 + (y2 - y1) * f + (Math.random() - 0.5) * 20,
-                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, size: 9, color: red ? '#f87171' : '#4d7c0f', life: 20 });
+                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, size: 9, color: red ? '#f87171' : (col || '#4d7c0f'), life: 20 });
         }
     }
     function mpTongue(x1, y1, x2, y2) {
@@ -6690,6 +7065,290 @@
                 if (cnt > 0) mpCrocSay(m, 160, `🐊 붉은 새끼 악어 ${cnt}마리가 태어났습니다!!`, "#f87171");
             }
         }
+    }
+
+
+    // =====================================================================
+    // v7: 골렘 마을 — 거신 골렘왕(20마리 처치 시 땅속에서 등장), 바위 던지기(기절), 땅 내려치기(공속 저하)
+    // =====================================================================
+    var golemKillCount = 0;
+    var golemBoulders = [];
+    window.__rings = window.__rings || [];
+    var GOLEM_X0 = 13900, GOLEM_X1 = 15900;
+    function mpIsGolemNormal(type) {
+        return type === 'golem_pebble' || type === 'golem_thrower' || type === 'golem_roller' || type === 'golem_crystal' || type === 'golem_magma';
+    }
+    function mpGolemKill(info) {
+        if (monsters.some(m => m.type === 'boss_golem_king')) return;
+        golemKillCount++;
+        if (golemKillCount >= 20) {
+            golemKillCount = 0;
+            mpSummonGolemKing(info.x, info.y);
+        } else if (golemKillCount % 5 === 0) {
+            mpCrocSay({ x: info.x, y: info.y }, 70, `🗿 땅속에서 무언가 꿈틀거립니다... (${golemKillCount}/20)`, '#fdba74');
+        }
+    }
+    function mpSummonGolemKing(x, y) {
+        const sx = Math.max(GOLEM_X0 + 250, Math.min(GOLEM_X1 - 200, x + (Math.random() < 0.5 ? -280 : 280)));
+        const sy = Math.max(260, Math.min(WORLD_HEIGHT - 260, y + (Math.random() - 0.5) * 120));
+        spawnMonster('boss_golem_king', sx, sy);
+        const k = monsters[monsters.length - 1];
+        if (k && k.type === 'boss_golem_king') { k.homeX = sx; k.homeY = sy; k.emergeTimer = 100; k.lastNearAt = Date.now(); }
+        mpAnnounce("🗿 땅이 갈라지며 고대 거신 골렘왕이 튀어나왔습니다!!", "#fb923c");
+        screenShake = 22;
+        playSound('thunder');
+    }
+    function mpAllTargets() {
+        const targets = [player];
+        if (mpRole === 'host') {
+            const map = window.remotePlayersMap || {};
+            for (const uid in map) {
+                if (uid === window.cloudUserId) continue;
+                const rp = map[uid];
+                if (!rp || rp.away || typeof rp.x !== 'number') continue;
+                targets.push(mpGetProxy(uid, rp));
+            }
+        }
+        return targets;
+    }
+    function mpApplyDebuff(effect, sec) {
+        if (effect === 'stun') {
+            player.stunTimer = Math.max(player.stunTimer || 0, sec);
+            addFloatingText(player.x, player.y - 70, "💫 기절! 3초간 이동·공격 불가 (아이템은 사용 가능)", "#fde047");
+        } else if (effect === 'slow') {
+            player.atkSlowTimer = Math.max(player.atkSlowTimer || 0, sec);
+            addFloatingText(player.x, player.y - 70, "🐢 공격 속도 0.8배! (3초)", "#c4b5fd");
+        }
+    }
+    // (x, y) 둘레 range 안의 모든 사람에게 피해 (+ 기절/공속 저하)
+    function mpGolemHitAt(x, y, range, dmg, text, effect) {
+        for (const T of mpAllTargets()) {
+            if (T.x <= RIVER_X + 20) continue;
+            if (Math.hypot(T.x - x, (T.y - y) * 1.6) > range) continue;
+            if (T.shieldBuffTimer > 0) { if (!T.isProxy) addFloatingText(T.x, T.y - 35, "🛡️ 무적 방어!", "#38bdf8"); continue; }
+            if (!effect && T.invincibleTimer > 0) continue;
+            T.hp -= dmg;
+            T.invincibleTimer = 30;
+            if (T.isProxy) {
+                if (effect) mpQueueFx('st', { u: T.uid, e: effect, s: 3 });
+            } else {
+                screenShake = 16;
+                addFloatingText(T.x, T.y - 40, `${text} -${dmg}`, '#f43f5e');
+                playSound('hit');
+                if (effect) mpApplyDebuff(effect, 3);
+                if (player.hp <= 0) handlePlayerDeath();
+            }
+        }
+    }
+    function mpShockRing(x, y, r, color) {
+        window.__rings.push({ x: x, y: y, r: r, c: color, life: 24 });
+        if (mpRole === 'host') mpQueueFx('sw', { x: Math.round(x), y: Math.round(y), r: r, c: color });
+    }
+    function mpThrowBoulder(x1, y1, x2, y2, frames, r, dmg, stun, sky) {
+        golemBoulders.push({ x1: x1, y1: y1, x2: x2, y2: y2, t: 0, d: frames, r: r, dmg: dmg, stun: stun, sky: sky, host: mpRole !== 'client' });
+        if (mpRole === 'host') mpQueueFx('bd', { x1: Math.round(x1), y1: Math.round(y1), x2: Math.round(x2), y2: Math.round(y2), d: frames, r: r, s: stun ? 1 : 0, q: sky ? 1 : 0 });
+    }
+    function mpGolemTick() {
+        for (let i = golemBoulders.length - 1; i >= 0; i--) {
+            const b = golemBoulders[i];
+            b.t++;
+            if (b.t < b.d) continue;
+            golemBoulders.splice(i, 1);
+            for (let k = 0; k < 10; k++) particles.push({ x: b.x2 + (Math.random() - 0.5) * b.r, y: b.y2 + (Math.random() - 0.5) * b.r * 0.5, vx: (Math.random() - 0.5) * 5, vy: -Math.random() * 4, size: 6, color: k % 2 ? '#78716c' : '#fb923c', life: 22 });
+            if (Math.abs(b.x2 - player.x) < 700 && Math.abs(b.y2 - player.y) < 500) screenShake = Math.max(screenShake, 6);
+            if (b.host) mpGolemHitAt(b.x2, b.y2, b.r, b.dmg, b.stun ? '🪨 바위에 맞아 기절!!' : '🪨 낙석!', b.stun ? 'stun' : null);
+        }
+    }
+    function mpDrawGolemFx() {
+        for (const b of golemBoulders) {
+            const p = Math.min(1, b.t / b.d);
+            // 떨어질 곳 경고(빨간 원)
+            ctx.save();
+            ctx.fillStyle = `rgba(239, 68, 68, ${0.12 + p * 0.22})`; ctx.strokeStyle = `rgba(248, 113, 113, ${0.5 + p * 0.4})`; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.ellipse(b.x2, b.y2, b.r, b.r * 0.62, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(b.x2, b.y2, b.r * p, b.r * 0.62 * p, 0, 0, Math.PI * 2); ctx.stroke();
+            // 날아오는 바위
+            const x = b.x1 + (b.x2 - b.x1) * p;
+            const y = b.sky ? b.y1 + (b.y2 - b.y1) * p * p : b.y1 + (b.y2 - b.y1) * p - Math.sin(p * Math.PI) * 170;
+            ctx.translate(x, y); ctx.rotate(b.t * 0.15);
+            const s = b.stun ? 1.25 : 1;
+            ctx.fillStyle = b.stun ? '#78716c' : '#57534e'; ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 3;
+            ctx.beginPath();
+            [[-24, -4], [-13, -20], [8, -22], [24, -7], [20, 13], [-2, 20], [-20, 13]].forEach((q, i) => i ? ctx.lineTo(q[0] * s, q[1] * s) : ctx.moveTo(q[0] * s, q[1] * s));
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.strokeStyle = 'rgba(251, 146, 60, 0.9)'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-9 * s, -5 * s); ctx.lineTo(0, 2 * s); ctx.lineTo(9 * s, -7 * s); ctx.stroke();
+            ctx.restore();
+        }
+        const rings = window.__rings;
+        for (let i = rings.length - 1; i >= 0; i--) {
+            const r = rings[i];
+            r.life--;
+            if (r.life <= 0) { rings.splice(i, 1); continue; }
+            const p = 1 - r.life / 24;
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, r.life / 10);
+            ctx.strokeStyle = r.c; ctx.lineWidth = 10 * (1 - p) + 2;
+            ctx.beginPath(); ctx.ellipse(r.x, r.y, r.r * p, r.r * 0.62 * p, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        }
+    }
+    function mpGolemKingAI(m, P, ang, dist) {
+        m.noMelee = false;
+        if (m.emergeTimer > 0) {
+            m.emergeTimer--;
+            m.noMelee = true;
+            if (m.emergeTimer % 8 === 0) {
+                screenShake = Math.max(screenShake, 8);
+                for (let k = 0; k < 6; k++) particles.push({ x: m.x + (Math.random() - 0.5) * 260, y: m.y + 40 + (Math.random() - 0.5) * 60, vx: (Math.random() - 0.5) * 4, vy: -2 - Math.random() * 4, size: 7, color: k % 2 ? '#57534e' : '#ea580c', life: 26 });
+            }
+            return;
+        }
+        const E = !!m.enraged;
+        m.meleeCd = E ? 22 : 36;
+        // 굴러오는 돌진
+        if (m.chargeWindup > 0) {
+            m.chargeWindup--;
+            m.noMelee = true;
+            if (m.chargeWindup === 0) m.chargeTimer = 42;
+            return;
+        }
+        if (m.chargeTimer > 0) {
+            m.chargeTimer--;
+            m.noMelee = true;
+            m.x = Math.max(m.leashMinX || GOLEM_X0, Math.min(WORLD_WIDTH - 80, m.x + Math.cos(m.chargeAngle) * 15));
+            m.y = Math.max(90, Math.min(WORLD_HEIGHT - 90, m.y + Math.sin(m.chargeAngle) * 15));
+            m.walkFrame += 0.6;
+            if (Math.random() < 0.6) particles.push({ x: m.x - Math.cos(m.chargeAngle) * 90, y: m.y + 30, vx: (Math.random() - 0.5) * 3, vy: -Math.random() * 2, size: 9, color: '#78716c', life: 18 });
+            if (Math.hypot(P.x - m.x, P.y - m.y) < m.radius * 0.7 + P.radius && P.invincibleTimer <= 0) {
+                if (P.shieldBuffTimer > 0) { if (!P.isProxy) addFloatingText(P.x, P.y - 35, "🛡️ 무적 방어!", "#38bdf8"); }
+                else {
+                    const rd = Math.floor(m.atk * 1.35);
+                    P.hp -= rd;
+                    P.invincibleTimer = 34;
+                    addFloatingText(P.x, P.y - 40, `🗿 굴러온 거신에게 깔렸습니다!! -${rd}`, '#f43f5e');
+                    if (!P.isProxy) { screenShake = 18; playSound('hit'); if (P.hp <= 0) handlePlayerDeath(); }
+                }
+            }
+            return;
+        }
+        // 순간이동(블링크): 바로 앞에 나타나서 주먹
+        m.tpTimer = (m.tpTimer == null ? 220 : m.tpTimer) - 1;
+        if (m.tpTimer <= 0 && dist > m.radius && dist < 900) {
+            m.tpTimer = E ? 150 : 270;
+            const a2 = Math.atan2(m.y - P.y, m.x - P.x);
+            const ox = m.x, oy = m.y;
+            m.x = Math.max(m.leashMinX || GOLEM_X0, Math.min(WORLD_WIDTH - 80, P.x + Math.cos(a2) * m.radius * 0.6));
+            m.y = Math.max(90, Math.min(WORLD_HEIGHT - 90, P.y + Math.sin(a2) * m.radius * 0.45));
+            m.attackCooldown = Math.min(m.attackCooldown || 0, 8);
+            m.punchAnim = 18;
+            mpTeleportFx(ox, oy, m.x, m.y, E, '#78716c');
+            if (mpRole === 'host') mpQueueFx('tp', { x1: Math.round(ox), y1: Math.round(oy), x2: Math.round(m.x), y2: Math.round(m.y), e: E ? 1 : 0, c: '#78716c' });
+            if (Math.random() < 0.4) mpCrocSay(m, 160, "🗿 쿠웅! 순간이동!!", "#fdba74");
+            playSound('nova');
+        } else if (dist > m.radius * 0.75) {
+            m.x += Math.cos(ang) * m.speed;
+            m.y += Math.sin(ang) * m.speed;
+            m.walkFrame += 0.2;
+        }
+        // 바위 던지기: 맞으면 3초 기절 (분노: 3개씩)
+        m.throwTimer = (m.throwTimer == null ? 100 : m.throwTimer) - 1;
+        if (m.throwTimer <= 0 && dist < 820) {
+            m.throwTimer = E ? 90 : 150;
+            m.throwAnim = 26;
+            const n = E ? 3 : 1;
+            for (let k = 0; k < n; k++) {
+                const tx = P.x + (k ? (Math.random() - 0.5) * 280 : 0), ty = P.y + (k ? (Math.random() - 0.5) * 170 : 0);
+                mpThrowBoulder(m.x + 40, m.y - 110, tx, ty, 50 + k * 4, 70, Math.floor(m.atk * 0.8), true, false);
+            }
+            if (Math.random() < 0.5) mpCrocSay(m, 170, "🗿 바위 던지기!! (맞으면 기절)", "#fdba74");
+        }
+        // 낙석 비
+        m.rainTimer = (m.rainTimer == null ? 320 : m.rainTimer) - 1;
+        if (m.rainTimer <= 0 && dist < 900) {
+            m.rainTimer = E ? 300 : 480;
+            const n = E ? 10 : 6;
+            for (let k = 0; k < n; k++) {
+                const tx = P.x + (k ? (Math.random() - 0.5) * 840 : 0), ty = P.y + (k ? (Math.random() - 0.5) * 520 : 0);
+                mpThrowBoulder(tx + 40, ty - 650, tx, ty, 58 + k * 3, 60, Math.floor(m.atk * 0.6), false, true);
+            }
+            mpCrocSay(m, 180, "🗿 하늘에서 바위가 쏟아집니다!!", "#fca5a5");
+        }
+        // 땅 내려치기: 강한 충격파 + 3초간 공격 속도 0.8배
+        m.slamTimer = (m.slamTimer == null ? 200 : m.slamTimer) - 1;
+        if (m.slamTimer <= 0 && dist < 340) {
+            m.slamTimer = E ? 180 : 300;
+            m.slamAnim = 30;
+            mpShockRing(m.x, m.y + 20, 360, E ? '#ef4444' : '#fb923c');
+            mpGolemHitAt(m.x, m.y, 340, Math.floor(m.atk), "🗿 땅 내려치기!!", 'slow');
+            mpCrocSay(m, 170, "🗿 땅 내려치기!! (공격 속도 저하)", "#fdba74");
+            playSound('thunder');
+        }
+        // 몸을 말아 굴러오기
+        m.rollTimer = (m.rollTimer == null ? 300 : m.rollTimer) - 1;
+        if (m.rollTimer <= 0 && dist > 220 && dist < 800) {
+            m.rollTimer = E ? 240 : 360;
+            m.chargeWindup = 22;
+            m.chargeAngle = ang;
+            mpCrocSay(m, 170, "🗿 거신이 몸을 말아 굴러옵니다!!", "#fdba74");
+        }
+        // 분노: 용암 꼬마 골렘 소환 (15초마다 3마리, 최대 6마리)
+        if (E) {
+            m.babyTimer = (m.babyTimer == null ? 600 : m.babyTimer) - 1;
+            if (m.babyTimer <= 0) {
+                m.babyTimer = 900;
+                const have = monsters.filter(b => b.type === 'golem_lava_imp' && b.motherNid === m.nid).length;
+                const cnt = Math.min(3, 6 - have);
+                for (let s = 0; s < cnt; s++) {
+                    const sa = Math.random() * Math.PI * 2;
+                    spawnMonster('golem_lava_imp', m.x + Math.cos(sa) * 160, m.y + Math.sin(sa) * 90);
+                    const b = monsters[monsters.length - 1];
+                    if (b && b.type === 'golem_lava_imp') { b.motherNid = m.nid; b.homeX = m.x; b.homeY = m.y; }
+                }
+                if (cnt > 0) mpCrocSay(m, 190, `🔥 용암 꼬마 골렘 ${cnt}마리가 솟아났습니다!!`, "#f87171");
+            }
+        }
+    }
+    // 골렘 마을 바닥: 검은 사막 + 주황색 금 + 돌무더기 + 무너진 돌집
+    function mpDrawGolemGround() {
+        const view = canvas.width / cameraZoom + 300;
+        ctx.save();
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        for (const cr of golemCracks) {
+            if (Math.abs(cr.x - player.x) > view) continue;
+            ctx.beginPath(); ctx.moveTo(cr.p[0], cr.p[1]);
+            for (let i = 2; i < cr.p.length; i += 2) ctx.lineTo(cr.p[i], cr.p[i + 1]);
+            ctx.strokeStyle = 'rgba(234, 88, 12, 0.16)'; ctx.lineWidth = cr.w + 5; ctx.stroke();
+            ctx.strokeStyle = `rgba(251, 146, 60, ${cr.a})`; ctx.lineWidth = cr.w; ctx.stroke();
+        }
+        for (const h of golemHuts) {
+            if (Math.abs(h.x - player.x) > view) continue;
+            ctx.save(); ctx.translate(h.x, h.y); ctx.scale(h.s, h.s);
+            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0, 34, 95, 20, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#3f3a36';                                         // 뒷벽 (위가 무너짐)
+            ctx.beginPath(); ctx.moveTo(-70, 30); ctx.lineTo(-70, -40); ctx.lineTo(-48, -52); ctx.lineTo(-30, -38); ctx.lineTo(-10, -60); ctx.lineTo(12, -44); ctx.lineTo(30, -50); ctx.lineTo(52, -28); ctx.lineTo(70, -36); ctx.lineTo(70, 30); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.strokeStyle = 'rgba(28, 25, 23, 0.7)'; ctx.lineWidth = 1.5;         // 돌 줄눈
+            for (let r = 0; r < 4; r++) { ctx.beginPath(); ctx.moveTo(-70, 18 - r * 16); ctx.lineTo(70, 18 - r * 16); ctx.stroke(); for (let k = 0; k < 5; k++) { const x = -60 + k * 30 + (r % 2) * 15; ctx.beginPath(); ctx.moveTo(x, 18 - r * 16); ctx.lineTo(x, 2 - r * 16); ctx.stroke(); } }
+            ctx.fillStyle = '#0c0a09'; ctx.beginPath(); ctx.moveTo(-14, 30); ctx.lineTo(-14, -6); ctx.quadraticCurveTo(0, -20, 14, -6); ctx.lineTo(14, 30); ctx.closePath(); ctx.fill();   // 문
+            ctx.fillStyle = '#0c0a09'; ctx.fillRect(34, -14, 16, 14);                                                                                                      // 창문
+            [[-82, 30, 16], [-56, 38, 12], [62, 36, 14], [84, 30, 18], [30, 42, 10], [-30, 42, 9]].forEach((q, i) => {                                                   // 무너진 돌
+                ctx.fillStyle = i % 2 ? '#57534e' : '#44403c'; ctx.beginPath(); ctx.moveTo(q[0] - q[2], q[1]); ctx.lineTo(q[0] - q[2] * 0.4, q[1] - q[2]); ctx.lineTo(q[0] + q[2] * 0.7, q[1] - q[2] * 0.8); ctx.lineTo(q[0] + q[2], q[1]); ctx.closePath(); ctx.fill();
+            });
+            ctx.strokeStyle = 'rgba(251, 146, 60, 0.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-50, -20); ctx.lineTo(-38, -2); ctx.lineTo(-44, 14); ctx.stroke();
+            ctx.restore();
+        }
+        for (const pl of golemPiles) {
+            if (Math.abs(pl.x - player.x) > view) continue;
+            for (const r of pl.r) {
+                ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(r.x, r.y + r.s * 0.6, r.s * 1.1, r.s * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = r.c; ctx.beginPath();
+                for (let j = 0; j < 7; j++) { const a = j / 7 * Math.PI * 2; ctx.lineTo(r.x + Math.cos(a) * r.s * r.j[j], r.y + Math.sin(a) * r.s * 0.8 * r.j[j]); }
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.beginPath(); ctx.ellipse(r.x - r.s * 0.25, r.y - r.s * 0.3, r.s * 0.45, r.s * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+        ctx.restore();
     }
 
     // ---- 친구 마법 보이기 ----
