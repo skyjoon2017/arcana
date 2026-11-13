@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v9">
+    <meta name="game-version" content="v10">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -644,6 +644,7 @@
 
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
+    <div id="crit-flash" style="position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;z-index:15;background:radial-gradient(circle,rgba(253,224,71,.55),rgba(245,158,11,.2) 50%,transparent 80%)"></div>
 
     <!-- Compact Top HUD Bar (Responsive & Horizontally Scrollable on Mobile) -->
     <div id="top-hud" class="fixed top-1.5 left-1.5 right-1.5 flex items-start justify-between gap-1.5 z-20 pointer-events-none">
@@ -820,6 +821,9 @@
             <i class="fa-solid fa-spider text-purple-700"></i>
             <span>🕸️ 거미줄 속박됨! 이동 불가 (<span id="webbed-timer">2.0</span>초)</span>
         </div>
+        <div id="vamp-banner" class="hidden px-4 py-1 rounded-full text-white font-black text-xs shadow-lg flex items-center gap-1.5" style="background:linear-gradient(90deg,#7f1d1d,#dc2626,#7f1d1d);border:1px solid #fecaca">
+            <span>🩸 흡혈 중! 준 피해의 3% 회복 (<span id="vamp-timer">10.0</span>초)</span>
+        </div>
         <div id="stun-banner" class="hidden px-4 py-1 rounded-full bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 text-slate-950 font-black text-xs shadow-lg border-2 border-orange-600 flex items-center gap-1.5 animate-pulse">
             <span>💫 기절! 이동·공격 불가, 아이템은 사용 가능 (<span id="stun-timer">3.0</span>초)</span>
         </div>
@@ -977,6 +981,15 @@
                 </div>
             </button>
 
+            <button onclick="usePotion('vamp')" class="potion-btn shrink-0 relative px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-left border-rose-500/70">
+                <span class="bg-rose-400 text-[9px] font-black px-1 rounded text-slate-950">−</span>
+                <span style="font-size:12px">🩸</span>
+                <div>
+                    <div class="text-[10px] font-bold text-rose-300 leading-none">흡혈 물약</div>
+                    <div id="count-vamp" class="text-[10px] font-black text-white">x0/5</div>
+                </div>
+            </button>
+
             <button onclick="castDirectionalBolt()" class="game-btn shrink-0 px-2.5 py-1 rounded-lg font-bold text-[10px] text-white hidden lg:flex items-center gap-1">
                 <i class="fa-solid fa-crosshairs text-amber-300"></i> 자동조준(Space)
                 <span id="ui-shoot-cd" class="text-[9px] bg-slate-900/70 px-1 rounded text-emerald-300">1단진화</span>
@@ -1114,6 +1127,20 @@
                     </div>
                     <button onclick="buyItem('shield')" class="game-btn px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0">
                         <i class="fa-solid fa-coins text-amber-300"></i> <span id="cost-shield">220</span> G
+                    </button>
+                </div>
+
+                <!-- Vampire Potion -->
+                <div class="flex items-center justify-between p-2.5 rounded-xl border" style="background:rgba(69,10,10,.55);border-color:rgba(248,113,113,.7)">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(220,38,38,.2);border:1px solid #f87171">🩸</div>
+                        <div>
+                            <div class="font-bold text-xs sm:text-sm text-rose-300">흡혈 물약 (− 키 · 최대 5개) <span id="shop-vamp-count" class="text-[10px] text-amber-300 font-normal">(보유: 0/5개)</span></div>
+                            <div class="text-[11px] text-rose-100/80">10초 동안 기본 공격으로 준 피해의 3%만큼 체력 회복 (재사용 대기시간 60초)</div>
+                        </div>
+                    </div>
+                    <button onclick="buyItem('vamp')" class="game-btn px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0">
+                        <i class="fa-solid fa-coins text-amber-300"></i> <span id="cost-vamp">220</span> G
                     </button>
                 </div>
 
@@ -1507,7 +1534,7 @@
             <div id="gacha-msg" style="text-align:center;font-size:12px;font-weight:900;min-height:18px;margin-top:6px"></div>
             <div style="font-size:14px;font-weight:900;color:#c7d2fe;margin:8px 0 6px">🎒 무기 가방 (눌러서 장착 · 장착한 무기를 다시 누르면 해제)</div>
             <div id="gacha-bag" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-            <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-top:10px">확률: 일반 55% (새총 25 · 투척 단검 18 · 나무 활 12) · 고급 25% (쇠 부메랑 14 · 연발 석궁 11) · 희귀 13% (서리 창 8 · 화염 도끼 5) · 영웅 6% (번개 쌍검 4 · 흡혈 낫 2) · 전설 1% (아르카나 성검) · 100회 안에 전설이 없으면 100번째 전설 확정</div>
+            <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-top:10px">확률: 💣 꽝 40% · 일반 33% (새총 15 · 투척 단검 10.8 · 나무 활 7.2) · 고급 15% (쇠 부메랑 8.4 · 연발 석궁 6.6) · 희귀 7.8% (서리 창 4.8 · 화염 도끼 3) · 영웅 3.6% (번개 쌍검 2.4 · 흡혈 낫 1.2) · 전설 0.6% (아르카나 성검) · 100회 안에 전설이 없으면 100번째 전설 확정</div>
             <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-top:4px">🎁 친구에게 무기 양도는 [멀티플레이] 창의 아이템 양도 목록에서 할 수 있습니다 · 뽑은 무기는 게임을 저장해야 남습니다</div>
         </div>
         <div id="gacha-flash" style="position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;background:radial-gradient(circle,rgba(253,224,71,.85),rgba(245,158,11,.35) 45%,transparent 75%)"></div>
@@ -2125,7 +2152,7 @@
             return Math.floor(250 * (1 + (lv - 1) * 0.5));
         } else if (type === 'boots') {
             return Math.floor(200 * (1 + (lv - 1) * 0.5));
-        } else if (type === 'shield') {
+        } else if (type === 'shield' || type === 'vamp') {
             return Math.floor(220 * (1 + Math.pow(lv - 1, 1.25) * 0.45));
         } else if (type === 'food') {
             const levelBase = 85 + (lv - 1) * 145 + Math.pow(Math.max(0, lv - 5), 1.35) * 40;
@@ -2843,6 +2870,7 @@
 
     function spawnMonster(type, customX, customY) {
         const data = createMonsterData(type);
+        if (data.type && data.type.startsWith('boss') && !data.isMinion) data.speed = Math.max(data.speed || 0, 4.8);   // 보스는 최소 내 캐릭터 속도
         if (mpRole === 'client') return; // 방장이 아니면 몬스터를 직접 만들지 않음
         if (typeof data.goldValue === 'number') data.goldValue = Math.round(data.goldValue * 1.2); // 골드 1.2배
         if (BOSS_GOLD[data.type]) {
@@ -3605,16 +3633,16 @@
         legendary: { label: '전설', color: '#f59e0b', glow: 'rgba(245,158,11,0.8)',  dark: '#78350f' }
     };
     const WEAPONS = [
-        { id: 'slingshot',      name: '새총',           grade: 'common',    prob: 25, bonus: 0.05, desc: '돌멩이를 쏩니다' },
-        { id: 'dagger',         name: '투척 단검',      grade: 'common',    prob: 18, bonus: 0.08, desc: '단검을 빠르게 일직선으로 던집니다' },
-        { id: 'bow',            name: '나무 활',        grade: 'common',    prob: 12, bonus: 0.10, desc: '화살을 멀리 쏩니다' },
-        { id: 'boomerang',      name: '쇠 부메랑',      grade: 'uncommon',  prob: 14, bonus: 0.15, desc: '적을 뚫고 날아갔다 돌아오며 한 번 더 맞힙니다' },
-        { id: 'crossbow',       name: '연발 석궁',      grade: 'uncommon',  prob: 11, bonus: 0.15, desc: '화살을 빠르게 연사합니다' },
-        { id: 'frost_spear',    name: '서리 창',        grade: 'rare',      prob: 8,  bonus: 0.30, desc: '적을 뚫고 지나가며 가끔 얼립니다' },
-        { id: 'fire_axe',       name: '화염 도끼',      grade: 'rare',      prob: 5,  bonus: 0.30, desc: '빙글빙글 도는 도끼, 맞은 적이 불탑니다' },
-        { id: 'thunder_blades', name: '번개 쌍검',      grade: 'epic',      prob: 4,  bonus: 0.40, desc: '검기 2개 + 근처 적에게 번개가 튑니다' },
-        { id: 'blood_scythe',   name: '흡혈 낫',        grade: 'epic',      prob: 2,  bonus: 0.60, desc: '거대한 낫 검기, 준 피해의 8%만큼 체력 회복' },
-        { id: 'arcana_sword',   name: '아르카나 성검',  grade: 'legendary', prob: 1,  bonus: 0.70, desc: '거대한 빛의 검기가 모든 적을 뚫고 나갑니다' }
+        { id: 'slingshot',      name: '새총',           grade: 'common',    kind: 'ranged', prob: 25, bonus: 0.05, desc: '원거리 · 돌멩이를 쏩니다' },
+        { id: 'dagger',         name: '투척 단검',      grade: 'common',    kind: 'ranged', prob: 18, bonus: 0.06, desc: '원거리 · 약한 흡혈 3%' },
+        { id: 'bow',            name: '나무 활',        grade: 'common',    kind: 'ranged', prob: 12, bonus: 0.08, desc: '원거리 · 사거리가 가장 깁니다' },
+        { id: 'boomerang',      name: '쇠 부메랑',      grade: 'uncommon',  kind: 'ranged', prob: 14, bonus: 0.10, desc: '원거리 · 뚫고 갔다 돌아옵니다' },
+        { id: 'crossbow',       name: '연발 석궁',      grade: 'uncommon',  kind: 'ranged', prob: 11, bonus: 0.10, desc: '원거리 · 연사가 조금 빠릅니다' },
+        { id: 'frost_spear',    name: '서리 창',        grade: 'rare',      kind: 'melee',  prob: 8,  bonus: 0.15, desc: '근접 찌르기 · 보스 포함 1초 빙결' },
+        { id: 'fire_axe',       name: '화염 도끼',      grade: 'rare',      kind: 'melee',  prob: 5,  bonus: 0.15, desc: '근접 · 주변에도 피해(스플래시) + 불' },
+        { id: 'thunder_blades', name: '번개 쌍검',      grade: 'epic',      kind: 'melee',  prob: 4,  bonus: 0.20, desc: '근접 · 2연속 베기 + 번개 스플래시' },
+        { id: 'blood_scythe',   name: '흡혈 낫',        grade: 'epic',      kind: 'melee',  prob: 2,  bonus: 0.20, desc: '근접 · 넓게 휘두르기, 흡혈 12%' },
+        { id: 'arcana_sword',   name: '아르카나 성검',  grade: 'legendary', kind: 'melee',  prob: 1,  bonus: 0.30, desc: '근접 · 가장 센 베기, 가끔 크리티컬 200%' }
     ];
 
     // 아이콘: 가운데 기준 약 -24~24 크기, 대각선(왼쪽 아래 → 오른쪽 위)으로 놓인 모습
@@ -3826,7 +3854,7 @@
         if (!id) return 1;
         return 1 + weaponInfo(id).bonus + (player.weapons[id] || 0) * 0.02;
     }
-    function gachaPrice() { const lv = player.level || 1; return 1500 + lv * lv * 12; }   // Lv20 6,300 · Lv40 20,700 · Lv60 44,700
+    function gachaPrice() { const lv = player.level || 1; return 5 * (1500 + lv * lv * 12); }   // Lv20 31,500 · Lv40 103,500 · Lv60 223,500
     function rollWeapon() {
         player.gachaPity = (player.gachaPity || 0) + 1;
         let w;
@@ -3834,8 +3862,10 @@
             w = WEAPONS.find(x => x.grade === 'legendary');
         } else {
             let r = Math.random() * 100;
+            if (r < 40) return null;                       // 💣 꽝 40%
+            r -= 40;
             w = WEAPONS[WEAPONS.length - 1];
-            for (const x of WEAPONS) { if (r < x.prob) { w = x; break; } r -= x.prob; }
+            for (const x of WEAPONS) { const p = x.prob * 0.6; if (r < p) { w = x; break; } r -= p; }
         }
         if (w.grade === 'legendary') player.gachaPity = 0;
         return w;
@@ -3854,6 +3884,7 @@
         let refund = 0, gotLegend = false;
         for (let i = 0; i < n; i++) {
             const w = rollWeapon();
+            if (!w) { results.push({ w: null, tag: '💣 꽝!' }); continue; }
             let tag;
             if (player.weapons[w.id] == null) { player.weapons[w.id] = 0; tag = 'NEW'; }
             else if (player.weapons[w.id] < 5) { player.weapons[w.id]++; tag = `+${player.weapons[w.id]} 강화`; }
@@ -3862,10 +3893,11 @@
             results.push({ w: w, tag: tag });
         }
         if (refund) player.gold += refund;
-        if (!player.equippedWeapon) player.equippedWeapon = results.slice().sort((a, b) => b.w.bonus - a.w.bonus)[0].w.id;
+        const gotW = results.filter(r => r.w);
+        if (!player.equippedWeapon && gotW.length) player.equippedWeapon = gotW.slice().sort((a, b) => b.w.bonus - a.w.bonus)[0].w.id;
         window.__gachaLast = results;
         if (msg) {
-            msg.textContent = gotLegend ? '✨✨ 전설 무기 획득!! ✨✨' : (refund ? `+5 무기는 뽑기 가격의 20%로 돌려받았습니다 (+${refund.toLocaleString()} G)` : '뽑기 완료! 무기 가방에서 눌러서 장착하세요.');
+            msg.textContent = gotLegend ? '✨✨ 전설 무기 획득!! ✨✨' : (!gotW.length ? '💣 꽝! 아무것도 나오지 않았습니다...' : refund ? `+5 무기는 뽑기 가격의 20%로 돌려받았습니다 (+${refund.toLocaleString()} G)` : '뽑기 완료! 무기 가방에서 눌러서 장착하세요.');
             msg.style.color = gotLegend ? '#fbbf24' : '#c7d2fe';
         }
         if (gotLegend) {
@@ -3916,6 +3948,12 @@
         if (res) {
             const list = window.__gachaLast || [];
             res.innerHTML = list.length ? list.map((r, i) => {
+                if (!r.w) return `<div class="gacha-card${animate ? ' gacha-flip' : ''}" style="animation-delay:${animate ? i * 0.12 : 0}s;width:92px;border-radius:12px;border:3px solid #475569;background:linear-gradient(#1f2937,#0b1020);padding:6px 4px;text-align:center">
+                    <div style="font-size:10px;font-weight:900;color:#94a3b8;height:14px"></div>
+                    <div style="font-size:34px;line-height:60px">💣</div>
+                    <div style="font-size:15px;font-weight:900;color:#fb7185">꽝!</div>
+                    <div style="font-size:10px;font-weight:800;color:#64748b">펑~</div>
+                </div>`;
                 const G = WEAPON_GRADES[r.w.grade];
                 const tagCol = r.tag === 'NEW' ? '#fde047' : (r.tag.startsWith('💰') ? '#fcd34d' : '#a7f3d0');
                 return `<div class="gacha-card${animate ? ' gacha-flip' : ''}${r.w.grade === 'legendary' ? ' gacha-legend' : ''}" style="animation-delay:${animate ? i * 0.12 : 0}s;width:92px;border-radius:12px;border:3px solid ${G.color};background:linear-gradient(${G.dark},#0b1020);box-shadow:0 0 14px ${G.glow};padding:6px 4px;text-align:center;position:relative">
@@ -4934,12 +4972,12 @@
         player.mp = Math.max(0, player.mp - manaCost);
 
         const speedReduction = Math.min(33, Math.floor((Math.min(lv, 20) - 1) * 1.35)); // Lv20 이후 고정
-        player.shootCooldown = player.superBuffTimer > 0 ? 11 : Math.max(15, 48 - speedReduction);
+        player.shootCooldown = player.superBuffTimer > 0 ? 11 : Math.max(30, 48 - speedReduction);   // 연사: 최대 1초에 2번
         if (player.atkSlowTimer > 0) player.shootCooldown = Math.round(player.shootCooldown * 1.25); // 공격 속도 0.8배
         player.attackAnim = 1.0;
 
         let nearestMonster = null;
-        let minDist = 430;
+        let minDist = equippedWeaponId() === 'bow' ? 450 : 380;   // 자동 조준 범위 (몬스터가 알아차리는 거리와 비슷하게)
         for (const m of monsters) {
             const d = Math.hypot(m.x - player.x, m.y - player.y);
             if (d < minDist) {
@@ -4975,28 +5013,26 @@
 
         let speed = Math.min(13.5, 9.5 + evoTier * 0.6);
         let radius = 8.5 + Math.min(5, evoTier * 1.1);
-        let life = 40;
         const wid = equippedWeaponId();
+        const winfo = wid ? weaponInfo(wid) : null;
+        if (winfo && winfo.kind === 'melee') {
+            // 근접 무기: 앞쪽을 크게 베어 범위 안의 몬스터 모두에게 피해 (원거리 여러 발 분량을 한 번에)
+            performMeleeSlash(wid, angle, atkDmg * offsets.length, false);
+            return;
+        }
+        let range = 380;
         const WX = {};
         if (wid) {
-            // 무기를 끼면 기본 공격이 그 무기 모양으로 바뀜
-            style = 'w_' + wid; color = WEAPON_GRADES[weaponInfo(wid).grade].color;
-            const R = { slingshot: 9, dagger: 9, bow: 9, boomerang: 14, crossbow: 9, frost_spear: 12, fire_axe: 14, thunder_blades: 14, blood_scythe: 19, arcana_sword: 28 };
+            style = 'w_' + wid; color = WEAPON_GRADES[winfo.grade].color;
+            const R = { slingshot: 9, dagger: 9, bow: 9, boomerang: 14, crossbow: 9 };
             radius = R[wid] || radius;
-            if (wid === 'dagger') speed *= 1.3;
-            if (wid === 'bow') { speed *= 1.1; life = 60; }
-            if (wid === 'crossbow') { speed *= 1.2; player.shootCooldown = Math.max(8, Math.round(player.shootCooldown * 0.88)); }
-            if (wid === 'frost_spear') { WX.pierce = true; WX.wFreeze = 0.15; life = 48; }
-            if (wid === 'fire_axe') WX.wBurn = true;
-            if (wid === 'boomerang') { WX.boomerang = true; WX.pierce = true; WX.turnAt = 22; }   // 뚫고 날아갔다가 돌아오면서 한 번 더
-            if (wid === 'thunder_blades') WX.wChain = true;
-            if (wid === 'blood_scythe') WX.lifeStealRatio = 0.08;
-            if (wid === 'arcana_sword') { WX.pierce = true; life = 52; }
-            if (wid === 'thunder_blades' || wid === 'arcana_sword') {   // 1발 더
-                const n = offsets.length + 1, step = n <= 2 ? 0.14 : 0.11;
-                offsets = []; for (let k = 0; k < n; k++) offsets.push((k - (n - 1) / 2) * step);
-            }
+            if (wid === 'dagger') { speed *= 1.3; WX.lifeStealRatio = 0.03; }
+            if (wid === 'bow') { speed *= 1.1; range = 450; }
+            if (wid === 'crossbow') { speed *= 1.2; player.shootCooldown = Math.max(8, Math.round(player.shootCooldown * 0.9)); }
+            if (wid === 'boomerang') { WX.boomerang = true; WX.pierce = true; }
         }
+        const life = Math.max(8, Math.round(range / speed));
+        if (WX.boomerang) WX.turnAt = Math.round(life * 0.45);
         for (const off of offsets) {
             const a = angle + off;
             projectiles.push(Object.assign({
@@ -5122,6 +5158,8 @@
         m.hp -= dmg;
         m.lastHitAt = Date.now();
         m.hitFlash = 6;
+        m.provokedUid = attackerUid || window.cloudUserId;   // 때린 사람을 10초 동안 쫓아감
+        m.provokedUntil = Date.now() + 10000;
         if (m.canEnrage && !m.enraged && m.hp > 0 && m.hp <= m.maxHp * 0.5) mpEnrage(m);
         addFloatingText(m.x, m.y - 28, `-${dmg}`, (!attackerUid || attackerUid === window.cloudUserId) ? '#fde047' : '#bae6fd');
         if (!attackerUid || attackerUid === window.cloudUserId) playSound('hit');
@@ -5371,6 +5409,13 @@
             player.speedBootsTimer = 20.0;
             player.bootsCooldown = 30.0;
             addFloatingText(player.x, player.y - 45, "👟 신속의 장화 발동! (20초간 초고속 질주)", "#2dd4bf");
+        } else if (type === 'vamp') {
+            if ((player.potions.vamp || 0) <= 0) { addFloatingText(player.x, player.y - 45, "보유한 흡혈 물약이 없습니다! 상점에서 구매하세요!", "#f87171"); return; }
+            if (player.vampCooldown > 0) { addFloatingText(player.x, player.y - 45, `⏳ 흡혈 물약 쿨타임 중! (${Math.ceil(player.vampCooldown)}초 남음)`, "#f87171"); return; }
+            player.potions.vamp--;
+            player.vampTimer = 10.0;
+            player.vampCooldown = 60.0;
+            addFloatingText(player.x, player.y - 45, "🩸 흡혈 물약 발동! (10초간 준 피해의 3% 회복)", "#f87171");
         } else if (type === 'shield' && player.potions.shield > 0) {
             if (player.shieldCooldown > 0) {
                 addFloatingText(player.x, player.y - 45, `⏳ 무적 방패 쿨타임 중! (${player.shieldCooldown.toFixed(1)}초 남음)`, "#818cf8");
@@ -5388,6 +5433,11 @@
 
     function buyItem(type) {
         const msgEl = document.getElementById('shop-message');
+        if (type === 'vamp' && (player.potions.vamp || 0) >= 5) {
+            msgEl.textContent = `⚠️ 흡혈 물약은 최대 5개까지만 가질 수 있습니다! (현재 5/5개)`;
+            msgEl.className = "mt-2 text-center text-xs font-bold text-amber-300 h-4";
+            return;
+        }
         if (type === 'shield' && player.potions.shield >= 5) {
             msgEl.textContent = `⚠️ 성스러운 무적 방패는 최대 5개까지만 구매하여 소지할 수 있습니다! (현재 5/5개 보유 중)`;
             msgEl.className = "mt-2 text-center text-xs font-bold text-amber-300 h-4";
@@ -5405,6 +5455,7 @@
         if (type === 'mp') { player.potions.mp++; msgEl.textContent = `마나 물약 구매 완료! ${remainTxt}`; }
         else if (type === 'super') { player.potions.super++; msgEl.textContent = `초강력 각성 물약 구매 완료! ${remainTxt}`; }
         else if (type === 'boots') { player.potions.boots++; msgEl.textContent = `신속의 마법 장화 구매 완료! ${remainTxt}`; }
+        else if (type === 'vamp') { player.potions.vamp = (player.potions.vamp || 0) + 1; msgEl.textContent = `흡혈 물약 구매 완료! (${player.potions.vamp}/5개) ${remainTxt}`; }
         else if (type === 'shield') { player.potions.shield++; msgEl.textContent = `성스러운 무적 방패 구매 완료! (${player.potions.shield}/5개) ${remainTxt}`; }
         else if (type === 'food') {
             player.potions.food++;
@@ -5499,6 +5550,10 @@
         if (bootsCountEl) {
             bootsCountEl.textContent = player.bootsCooldown > 0 ? `${Math.ceil(player.bootsCooldown)}s (x${player.potions.boots})` : `x${player.potions.boots}`;
         }
+        const vampCntEl = document.getElementById('count-vamp');
+        if (vampCntEl) vampCntEl.textContent = player.vampCooldown > 0 ? `${Math.ceil(player.vampCooldown)}s (${player.potions.vamp || 0}/5)` : `x${player.potions.vamp || 0}/5`;
+        const shopVampEl = document.getElementById('shop-vamp-count'); if (shopVampEl) shopVampEl.textContent = `(보유: ${player.potions.vamp || 0}/5개)`;
+        const cVamp = document.getElementById('cost-vamp'); if (cVamp) cVamp.textContent = getDynamicItemPrice('vamp');
         const shieldCountEl = document.getElementById('count-shield');
         if (shieldCountEl) {
             shieldCountEl.textContent = player.shieldCooldown > 0 ? `${Math.ceil(player.shieldCooldown)}s (${player.potions.shield}/5)` : `x${player.potions.shield}/5`;
@@ -6127,6 +6182,9 @@
         if (player.bootsCooldown > 0) player.bootsCooldown = Math.max(0, player.bootsCooldown - 1/60);
         if (player.superCooldown > 0) player.superCooldown = Math.max(0, player.superCooldown - 1/60);
         if (player.stunTimer > 0) player.stunTimer = Math.max(0, player.stunTimer - 1/60);
+        if (player.vampTimer > 0) player.vampTimer = Math.max(0, player.vampTimer - 1/60);
+        if (player.vampCooldown > 0) player.vampCooldown = Math.max(0, player.vampCooldown - 1/60);
+        { const vb = document.getElementById('vamp-banner'); if (vb) { vb.classList.toggle('hidden', !(player.vampTimer > 0)); if (player.vampTimer > 0) document.getElementById('vamp-timer').textContent = player.vampTimer.toFixed(1); } }
         if (player.atkSlowTimer > 0) player.atkSlowTimer = Math.max(0, player.atkSlowTimer - 1/60);
         const stunB = document.getElementById('stun-banner'), slowB = document.getElementById('slow-banner');
         if (stunB) { stunB.classList.toggle('hidden', !(player.stunTimer > 0)); if (player.stunTimer > 0) document.getElementById('stun-timer').textContent = player.stunTimer.toFixed(1); }
@@ -6283,9 +6341,10 @@
             if (m.frozenTimer && m.frozenTimer > 0) { m.frozenTimer = Math.max(0, m.frozenTimer - 1/60); continue; }
 
             const dist = Math.hypot(P.x - m.x, P.y - m.y);
-            const aggroRange = m.isSupremeBoss ? 860 : 540;
+            const provoked = m.provokedUntil > Date.now();
+            const aggroRange = provoked ? 1400 : (m.isSupremeBoss ? 860 : 540);
             const distFromHome = Math.hypot((m.homeX || m.x) - m.x, (m.homeY || m.y) - m.y);
-            const maxLeashDist = m.isSupremeBoss ? 1100 : 720;
+            const maxLeashDist = provoked ? 1600 : (m.isSupremeBoss ? 1100 : 720);
 
             const shouldReturnHome =
                 P.x <= RIVER_X + 20 ||
@@ -6655,6 +6714,7 @@
                         if (mpRole !== 'client') { m.frozenTimer = 60; playSound('freeze'); }
                     }
                     damageMonster(m, j, proj.damage, (proj.freezeDuration || 0) || wFrz);
+                    if (proj.isPlayerShot && player.vampTimer > 0) playerVampHeal(proj.damage, 0);
                     if (proj.wBurn || proj.wChain) weaponOnHit(proj, m, proj.damage);
                     if (proj.pierce) { (proj.hitSet = proj.hitSet || new Set()).add(m); continue; }
                     hit = true;
@@ -6668,7 +6728,7 @@
             const rs = remoteShots[i];
             rs.x += rs.vx; rs.y += rs.vy; rs.life--;
             let gone = rs.life <= 0;
-            if (!gone) {
+            if (!gone && !(rs.shotStyle && rs.shotStyle.startsWith('m_'))) {
                 for (const m of monsters) {
                     if (Math.hypot(rs.x - m.x, rs.y - (m.y - 8)) < rs.radius + m.radius + 12) { gone = true; break; }
                 }
@@ -6894,6 +6954,11 @@
         drawPets();
 
         for (const proj of (remoteShots.length ? projectiles.concat(remoteShots) : projectiles)) {
+            if (proj.shotStyle && proj.shotStyle.startsWith('m_')) {      // 친구의 근접 베기
+                const st = proj.shotStyle.slice(2), crit = st.endsWith('!');
+                drawMeleeSlashAt(ctx, proj.x, proj.y, proj.angle, proj.radius, crit ? st.slice(0, -1) : st, crit, (proj.life || 0) / 12);
+                continue;
+            }
             if (proj.shotStyle && proj.shotStyle.startsWith('w_')) {
                 ctx.save();
                 ctx.translate(proj.x, proj.y);
@@ -6969,6 +7034,7 @@
         }
         mpDrawGolemFx();
         mpDrawSeaFx();
+        mpDrawMeleeSlashes();
         const tongues = window.__tongues || [];
         for (let ti = tongues.length - 1; ti >= 0; ti--) {
             const tg = tongues[ti];
@@ -7055,8 +7121,8 @@
             ctx.fillStyle = pt.color; ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size * (pt.life / 20), 0, Math.PI * 2); ctx.fill();
         }
         for (const ft of floatingTexts) {
-            ctx.font = '900 13px "Noto Sans KR"'; ctx.textAlign = 'center';
-            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3; ctx.strokeText(ft.text, ft.x, ft.y);
+            ctx.font = `900 ${ft.size || 13}px "Noto Sans KR"`; ctx.textAlign = 'center';
+            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = ft.size ? 6 : 3; ctx.strokeText(ft.text, ft.x, ft.y);
             ctx.fillStyle = ft.color; ctx.fillText(ft.text, ft.x, ft.y);
         }
 
@@ -7414,6 +7480,10 @@
     }
     function mpPickTarget(m) {
         if (mpRole !== 'host') return player;
+        if (m.provokedUntil > Date.now() && m.provokedUid) {
+            if (m.provokedUid === window.cloudUserId) { if (player.x > RIVER_X + 20 && player.hp > 0) return player; }
+            else { const rp = (window.remotePlayersMap || {})[m.provokedUid]; if (rp && !rp.away && typeof rp.x === 'number' && rp.x > RIVER_X + 20) return mpGetProxy(m.provokedUid, rp); }
+        }
         let best = player;
         let bestD = player.x > RIVER_X + 20 ? Math.hypot(player.x - m.x, player.y - m.y) : Infinity;
         const map = window.remotePlayersMap || {};
@@ -7509,7 +7579,9 @@
             const m = byNid[h[0]];
             if (!m || m.hp <= 0 || monsters.indexOf(m) === -1) continue;
             const d = Number(h[1]) || 0, f = Number(h[2]) || 0;
-            if (f > 0) {
+            if (f >= 1000) {
+                m.frozenTimer = f - 1000;   // 서리 창 빙결: 보스 포함
+            } else if (f > 0) {
                 if (m.isSupremeBoss) {
                     const dodgeAng = Math.random() * Math.PI * 2;
                     m.x = Math.max(RIVER_X + 100, Math.min(WORLD_WIDTH - 80, m.x + Math.cos(dodgeAng) * 45));
@@ -7843,11 +7915,18 @@
         // 가시 털기: 사방으로 (보통 2~2.5초마다 32방향, 분노 1초마다 40방향)
         m.spikeTimer = (m.spikeTimer || 120) - 1;
         if (m.spikeTimer <= 0 && dist < 900) {
-            m.spikeTimer = E ? 60 + Math.floor(Math.random() * 10) : 120 + Math.floor(Math.random() * 30);
+            m.spikeTimer = E ? 50 + Math.floor(Math.random() * 10) : 78 + Math.floor(Math.random() * 18);
             m.spikeAnim = 26;
             mpSpikeRing(m.x, m.y - 30, E ? 40 : 32, Math.random() * Math.PI * 2, 7.4, 11, Math.floor(m.atk * 0.6), E ? '#fca5a5' : '#e7e5c4', 100);
             if (Math.random() < 0.35) mpCrocSay(m, 140, "🐊 등가시 털기!!", "#fde68a");
             playSound('shoot');
+        }
+        // 물 대포: 일직선으로 날아오는 원거리 공격
+        m.waterTimer = (m.waterTimer == null ? 90 : m.waterTimer) - 1;
+        if (m.waterTimer <= 0 && dist < 800) {
+            m.waterTimer = E ? 70 : 100;
+            for (let k = 0; k < 3; k++) mpSpawnEnemyProj({ x: m.x + Math.cos(ang) * (70 + k * 26), y: m.y - 20 + Math.sin(ang) * (70 + k * 26), vx: Math.cos(ang) * 10, vy: Math.sin(ang) * 10, radius: 12, damage: Math.floor(m.atk * 0.7), color: '#38bdf8', life: 80 });
+            if (Math.random() < 0.35) mpCrocSay(m, 140, "🐊 물 대포!!", "#7dd3fc");
         }
         // 빨간 새끼 악어: 분노 10초 뒤부터 15초마다 3마리 (한 마리당 최대 6마리)
         if (E && mpRole !== 'client') {
@@ -8057,7 +8136,7 @@
         // 바위 던지기: 맞으면 3초 기절 (분노: 3개씩)
         m.throwTimer = (m.throwTimer == null ? 100 : m.throwTimer) - 1;
         if (m.throwTimer <= 0 && dist < 820) {
-            m.throwTimer = E ? 90 : 150;
+            m.throwTimer = E ? 60 : 90;
             m.throwAnim = 26;
             const n = E ? 3 : 1;
             for (let k = 0; k < n; k++) {
@@ -8069,7 +8148,7 @@
         // 낙석 비
         m.rainTimer = (m.rainTimer == null ? 320 : m.rainTimer) - 1;
         if (m.rainTimer <= 0 && dist < 900) {
-            m.rainTimer = E ? 300 : 480;
+            m.rainTimer = E ? 200 : 300;
             const n = E ? 10 : 6;
             for (let k = 0; k < n; k++) {
                 const tx = P.x + (k ? (Math.random() - 0.5) * 840 : 0), ty = P.y + (k ? (Math.random() - 0.5) * 520 : 0);
@@ -8294,7 +8373,7 @@
         // 바닥에서 솟는 촉수 (빨간 원으로 먼저 경고)
         m.tentTimer = (m.tentTimer == null ? 100 : m.tentTimer) - 1;
         if (m.tentTimer <= 0 && dist < 860) {
-            m.tentTimer = E ? 100 : 150;
+            m.tentTimer = E ? 70 : 100;
             m.slamAnim = 30;
             const n = E ? 5 : 3;
             for (let k = 0; k < n; k++) {
@@ -8306,7 +8385,7 @@
         // 먹물 대포 (세 갈래, 화면은 안 가림)
         m.inkTimer = (m.inkTimer == null ? 80 : m.inkTimer) - 1;
         if (m.inkTimer <= 0 && dist < 820) {
-            m.inkTimer = E ? 70 : 120;
+            m.inkTimer = E ? 50 : 78;
             for (const off of [-0.22, 0, 0.22]) {
                 const a = ang + off;
                 mpSpawnEnemyProj({ x: m.x + Math.cos(a) * 60, y: m.y - 30 + Math.sin(a) * 40, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, radius: 13, damage: Math.floor(m.atk * 0.6), color: '#312e81', life: 95 });
@@ -8393,6 +8472,123 @@
         }
     }
 
+
+    // =====================================================================
+    // v10: 근접 무기 베기 · 성검 크리티컬 · 흡혈 (무기·흡혈 물약)
+    // =====================================================================
+    const WEAPON_MELEE = {
+        frost_spear:    { r: 150, arc: 0.32, color: '#7dd3fc' },   // 길고 좁은 찌르기
+        fire_axe:       { r: 120, arc: 1.0,  color: '#f97316' },
+        thunder_blades: { r: 115, arc: 1.1,  color: '#facc15' },
+        blood_scythe:   { r: 140, arc: 1.5,  color: '#dc2626' },   // 넓게 휘두르기
+        arcana_sword:   { r: 165, arc: 1.3,  color: '#fde68a' }    // 가장 넓고 긴 베기
+    };
+    const meleeSlashes = [];
+    function playerVampHeal(dmg, ratio) {
+        const total = (ratio || 0) + (player.vampTimer > 0 ? 0.03 : 0);
+        if (total <= 0 || dmg <= 0 || player.hp <= 0) return;
+        const heal = Math.max(1, Math.round(dmg * total));
+        player.hp = Math.min(player.maxHp, player.hp + heal);
+        if (Math.random() < 0.35) addFloatingText(player.x, player.y - 26, `🩸 +${heal} HP`, '#f87171');
+    }
+    function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return Math.abs(d); }
+    function performMeleeSlash(wid, angle, dmgPerHit, isSecond) {
+        const cfg = WEAPON_MELEE[wid];
+        if (!cfg) return;
+        const px = player.x, py = player.y - 10;
+        let crit = false, dmg = dmgPerHit;
+        if (wid === 'arcana_sword' && Math.random() < 0.01) { crit = true; dmg = dmgPerHit * 2; }   // 성검: 1% 확률 200% 크리티컬
+        meleeSlashes.push({ x: px, y: py, a: angle, r: cfg.r, arc: cfg.arc, color: cfg.color, wid: wid, crit: crit, life: 12 });
+        mpRecordShot(px, py, angle, [0], 0.1, 'm_' + wid + (crit ? '!' : ''), cfg.color, cfg.r, 12, 0);
+        const hits = [];
+        for (const m of monsters) {
+            if (m.hp <= 0) continue;
+            const d = Math.hypot(m.x - px, (m.y - 8) - py);
+            if (d - m.radius > cfg.r) continue;
+            if (angDiff(Math.atan2((m.y - 8) - py, m.x - px), angle) > cfg.arc + Math.atan2(m.radius, Math.max(d, 1))) continue;
+            hits.push(m);
+        }
+        const hitSet = new Set(hits);
+        for (const m of hits) {
+            const idx = monsters.indexOf(m);
+            if (idx < 0) continue;
+            let frz = 0;
+            if (wid === 'frost_spear' && Date.now() - (m.lastWFreeze || 0) > 5000 && !m.dormant) {   // 빙결: 보스 포함 1초, 같은 몬스터는 5초에 한 번
+                m.lastWFreeze = Date.now();
+                frz = 1001;
+                if (mpRole !== 'client') { m.frozenTimer = 1; }
+                playSound('freeze');
+                addFloatingText(m.x, m.y - 70, '❄️ 빙결!', '#7dd3fc');
+            }
+            damageMonster(m, idx, dmg, frz);
+            if (crit && m === hits[0]) floatingTexts.push({ x: m.x, y: m.y - 70, text: `💥 CRITICAL!! ${dmg.toLocaleString()}`, color: '#fde047', life: 75, size: 30 });
+            if (wid === 'blood_scythe') playerVampHeal(dmg, 0.12);
+            else playerVampHeal(dmg, 0);
+            if (wid === 'fire_axe') {                                  // 스플래시: 주변에도 50% + 불탐
+                for (const o of monsters.slice()) {
+                    if (hitSet.has(o) || o.hp <= 0 || Math.hypot(o.x - m.x, o.y - m.y) > 110) continue;
+                    const oi = monsters.indexOf(o); if (oi < 0) continue;
+                    damageMonster(o, oi, Math.max(1, Math.round(dmg * 0.5)), 0);
+                    hitSet.add(o);
+                }
+                for (let k = 0; k < 6; k++) particles.push({ x: m.x + (Math.random() - 0.5) * 60, y: m.y - 10 + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 3, vy: -1 - Math.random() * 2, size: 7, color: k % 2 ? '#f97316' : '#fde047', life: 18 });
+                weaponOnHit({ wBurn: true }, m, dmg);
+            }
+            if (wid === 'thunder_blades') {                            // 번개 스플래시: 주변 2마리에게 40%
+                const near = monsters.filter(o => !hitSet.has(o) && o.hp > 0 && Math.hypot(o.x - m.x, o.y - m.y) < 220).sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y)).slice(0, 2);
+                for (const o of near) {
+                    lightningBolts.push({ segments: [{ x1: m.x, y1: m.y - 10, x2: (m.x + o.x) / 2 + (Math.random() - 0.5) * 30, y2: (m.y + o.y) / 2 - 10 }, { x1: (m.x + o.x) / 2, y1: (m.y + o.y) / 2 - 10, x2: o.x, y2: o.y - 10 }], targetX: o.x, targetY: o.y, life: 10, maxLife: 10, color: '#fde047' });
+                    const oi = monsters.indexOf(o); if (oi >= 0) damageMonster(o, oi, Math.max(1, Math.round(dmg * 0.4)), 0);
+                    hitSet.add(o);
+                }
+            }
+        }
+        if (crit) {
+            const fl = document.getElementById('crit-flash');
+            if (fl) { fl.style.opacity = '1'; setTimeout(() => { fl.style.opacity = '0'; }, 260); }
+            screenShake = 20;
+            playSound('thunder');
+            if (!hits.length) floatingTexts.push({ x: px + Math.cos(angle) * 80, y: py - 40, text: '💥 CRITICAL!!', color: '#fde047', life: 60, size: 26 });
+        }
+        if (wid === 'arcana_sword' && !isSecond) {                     // 짧은 빛 검기 (뚫고 나감)
+            projectiles.push({ x: px + Math.cos(angle) * 40, y: py + Math.sin(angle) * 40, vx: Math.cos(angle) * 13, vy: Math.sin(angle) * 13, angle: angle, radius: 26,
+                damage: Math.max(1, Math.round(dmgPerHit * 0.5)), color: '#fde68a', isPlayerShot: true, shotStyle: 'w_arcana_sword', life: 14, pierce: true, hitSet: hitSet });
+        }
+        if (wid === 'thunder_blades' && !isSecond) setTimeout(() => { if (player.hp > 0 && !(player.stunTimer > 0)) performMeleeSlash(wid, angle, dmgPerHit, true); }, 140);   // 빠른 2연속 베기
+    }
+    function drawMeleeSlashAt(c, x, y, a, r, wid, crit, lifeFrac) {
+        const cfg = WEAPON_MELEE[wid] || { arc: 1, color: '#ffffff' };
+        const col = crit ? '#ffffff' : cfg.color;
+        c.save();
+        c.globalAlpha = Math.max(0, Math.min(1, lifeFrac * 1.4));
+        c.shadowColor = crit ? '#fde047' : cfg.color; c.shadowBlur = crit ? 30 : 14;
+        if (wid === 'frost_spear') {                                   // 찌르기: 길고 뾰족한 빛
+            c.translate(x, y); c.rotate(a);
+            const g = c.createLinearGradient(0, 0, r, 0); g.addColorStop(0, 'rgba(186,230,253,0)'); g.addColorStop(1, '#e0f2fe');
+            c.fillStyle = g; c.beginPath(); c.moveTo(10, -12); c.lineTo(r + 10, 0); c.lineTo(10, 12); c.closePath(); c.fill();
+        } else {
+            const sweep = (1 - lifeFrac) * 0.5;
+            c.strokeStyle = col; c.lineCap = 'round';
+            c.lineWidth = crit ? 18 : 12;
+            c.beginPath(); c.arc(x, y, r * 0.85, a - cfg.arc + sweep, a + cfg.arc - sweep * 0.3); c.stroke();
+            c.globalAlpha *= 0.5; c.lineWidth = crit ? 30 : 22;
+            c.beginPath(); c.arc(x, y, r * 0.6, a - cfg.arc * 0.8 + sweep, a + cfg.arc * 0.8 - sweep * 0.3); c.stroke();
+        }
+        if (crit) {                                                    // 크리티컬: 금빛 별 폭발
+            c.globalAlpha = Math.min(1, lifeFrac * 1.6); c.fillStyle = '#fde047';
+            for (let k = 0; k < 10; k++) { const aa = k / 10 * Math.PI * 2, rr = r * (1.15 - lifeFrac * 0.4); c.beginPath(); c.arc(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr * 0.7, 5, 0, Math.PI * 2); c.fill(); }
+        }
+        c.restore();
+    }
+    function mpDrawMeleeSlashes() {
+        for (let i = meleeSlashes.length - 1; i >= 0; i--) {
+            const s = meleeSlashes[i];
+            s.life--;
+            if (s.life <= 0) { meleeSlashes.splice(i, 1); continue; }
+            drawMeleeSlashAt(ctx, s.x, s.y, s.a, s.r, s.wid, s.crit, s.life / 12);
+        }
+    }
+
     // ---- 친구 마법 보이기 ----
     const remoteShots = [];
     let mpShotSeq = 0;
@@ -8424,6 +8620,7 @@
             if (now - (s.t || 0) > 1500) continue;
             const frames = Math.min(10, Math.max(0, (now - s.t) / 16.7));
             const offs = Array.isArray(s.o) ? s.o : Object.values(s.o || { 0: 0 });
+            if (s.st && s.st.startsWith('m_') && s.st.endsWith('!')) floatingTexts.push({ x: s.x + Math.cos(s.a || 0) * 90, y: s.y - 50, text: '💥 CRITICAL!!', color: '#fde047', life: 60, size: 26 });
             for (const off of offs) {
                 const a2 = (s.a || 0) + (Number(off) || 0);
                 const vx = Math.cos(a2) * (s.s || 9), vy = Math.sin(a2) * (s.s || 9);
@@ -8543,6 +8740,7 @@
         { key: 'food', label: '바비큐' },
         { key: 'boots', label: '신속 장화' },
         { key: 'shield', label: '무적 방패' },
+        { key: 'vamp', label: '흡혈 물약' },
         { key: 'staff', label: '지팡이 강화석' }
     ];
     function giftItemLabel(key) {
@@ -8624,6 +8822,7 @@
             else { player.weapons[wid] = Math.min(5, player.weapons[wid] + 1 + gp); label = `⚔️ ${weaponInfo(wid).name} (이미 있어서 +${player.weapons[wid]} 강화)`; }
         } else if (GIFT_ITEMS.some(i => i.key === g.kind)) {
             player.potions[g.kind] = (player.potions[g.kind] || 0) + qty;
+            if (g.kind === 'vamp') player.potions.vamp = Math.min(5, player.potions.vamp);
             label = `${giftItemLabel(g.kind)} ${qty}개`;
         } else {
             return;
@@ -8899,6 +9098,7 @@
         if (e.code === 'Digit8') usePotion('shield');
         if (e.code === 'Digit9') usePotion('staff');
         if (e.code === 'Digit0') toggleGachaModal();
+        if (e.code === 'Minus') usePotion('vamp');
         if (e.code === 'KeyQ') castNovaSkill();
         if (e.code === 'KeyH') toggleHomeModal();
         if (e.code === 'KeyB') togglePokedexModal();
