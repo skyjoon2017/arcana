@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v8">
+    <meta name="game-version" content="v9">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -767,6 +767,9 @@
                     </button>
                     <button onclick="teleportTo('golem'); toggleTopDrawer();" class="p-1.5 rounded-lg bg-stone-900/95 border border-orange-500/90 text-orange-200 font-black flex items-center justify-center gap-1 shadow-[0_0_10px_rgba(249,115,22,0.35)]">
                         <i class="fa-solid fa-mountain text-orange-400"></i> 골렘 마을 (거신보스)
+                    </button>
+                    <button onclick="teleportTo('sea'); toggleTopDrawer();" class="p-1.5 rounded-lg font-black flex items-center justify-center gap-1" style="background:rgba(8,47,73,.95);border:1px solid #38bdf8;color:#bae6fd">
+                        <i class="fa-solid fa-water text-sky-300"></i> 심해 신전 (크라켄)
                     </button>
                     <button onclick="toggleGachaModal(); toggleTopDrawer();" class="col-span-2 p-1.5 rounded-lg font-black flex items-center justify-center gap-1.5 text-white" style="background:linear-gradient(90deg,#3730a3,#92400e);border:1px solid #f59e0b">
                         🎲 무기 뽑기 · 무기 가방
@@ -2020,7 +2023,7 @@
         } catch (e) {}
     }
 
-    const WORLD_WIDTH = 15900;
+    const WORLD_WIDTH = 17900;
     const WORLD_HEIGHT = 3200;
     const RIVER_X = 1550;
     const BRIDGE_Y = 1550;
@@ -2174,6 +2177,7 @@
     const trees = [];
     const swampPools = [];
     const golemCracks = [], golemPiles = [], golemHuts = [];
+    const seaRays = [], seaPillars = [], seaCorals = [], seaWeeds = [];
     const rocks = [];
     const flowers = [];
     const monsters = [];
@@ -2204,7 +2208,8 @@
             const tx = RIVER_X + 120 + Math.random() * (WORLD_WIDTH - RIVER_X - 200);
             const ty = 80 + Math.random() * (WORLD_HEIGHT - 160);
             let tType = 'forest';
-            if (tx > 13900) tType = 'golem';
+            if (tx > 15900) tType = 'sea';
+            else if (tx > 13900) tType = 'golem';
             else if (tx > 11900) tType = 'swamp';
             else if (tx > 10100) tType = 'grass';
             else if (tx > 7100) tType = 'celestial';
@@ -2236,6 +2241,11 @@
             golemPiles.push({ x: px, r: r });
         }
         [[14280, 430, 1.25], [15350, 760, 1.1], [14620, 2520, 1.3], [15500, 2250, 1.0], [14180, 1980, 0.95], [15050, 1250, 0.9]].forEach(q => golemHuts.push({ x: q[0], y: q[1], s: q[2] }));
+        // 심해 신전: 빛줄기, 가라앉은 기둥, 산호, 해초
+        for (let i = 0; i < 9; i++) seaRays.push({ x: 15950 + i * 230 + Math.random() * 120 });
+        for (let i = 0; i < 12; i++) seaPillars.push({ x: 16000 + Math.random() * 1820, y: 150 + Math.random() * (WORLD_HEIGHT - 300), h: 70 + Math.random() * 80, broken: Math.random() < 0.6 });
+        for (let i = 0; i < 46; i++) seaCorals.push({ x: 15960 + Math.random() * 1900, y: 80 + Math.random() * (WORLD_HEIGHT - 160), col: ['#f472b6', '#fb923c', '#f87171', '#c084fc'][i % 4] });
+        for (let i = 0; i < 70; i++) seaWeeds.push({ x: 15960 + Math.random() * 1900, y: 80 + Math.random() * (WORLD_HEIGHT - 160), h: 40 + Math.random() * 60, c: i % 2 ? '#15803d' : '#16a34a' });
         for (let i = 0; i < 135; i++) {
             rocks.push({
                 x: 120 + Math.random() * (WORLD_WIDTH - 240),
@@ -2283,6 +2293,13 @@
         for (let i = 0; i < 16; i++) spawnMonster('golem_roller');
         for (let i = 0; i < 16; i++) spawnMonster('golem_crystal');
         for (let i = 0; i < 12; i++) spawnMonster('golem_magma');
+
+        for (let i = 0; i < 20; i++) spawnMonster('sea_bladefish');
+        for (let i = 0; i < 16; i++) spawnMonster('sea_jelly');
+        for (let i = 0; i < 16; i++) spawnMonster('sea_puffer');
+        for (let i = 0; i < 14; i++) spawnMonster('sea_crab');
+        for (let i = 0; i < 12; i++) spawnMonster('sea_shark');
+        spawnMonster('boss_kraken');
 
         spawnMonster('boss_orc');
         spawnMonster('boss_archmage');
@@ -2742,11 +2759,40 @@
             return {
                 type: 'boss_golem_king', spawnKey: 'boss_golem_king', isStone: true, stoneScale: 3.0, isGolemKing: true,
                 name: '★★★★★★★ 고대 거신 골렘왕', level: 120,
-                x: 15000, y: BRIDGE_Y, leashMinX: 13950, leashMaxX: WORLD_WIDTH,
+                x: 15000, y: BRIDGE_Y, leashMinX: 13950, leashMaxX: 15850,
                 radius: 140, hp: 800000, maxHp: 800000, atk: 3240, atkBase: 3240, canEnrage: true, speed: 5.8,
                 isRanged: false, isSupremeBoss: true, chargeWindup: 0, chargeTimer: 0, chargeAngle: 0,
                 throwAnim: 0, slamAnim: 0, punchAnim: 0,
                 expValue: 45000, goldValue: 120000
+            };
+        } else if (type === 'sea_bladefish' || type === 'sea_jelly' || type === 'sea_puffer' || type === 'sea_crab' || type === 'sea_shark' || type === 'sea_squidling') {
+            x = 16000 + Math.random() * 1800;
+            y = 200 + Math.random() * (WORLD_HEIGHT - 400);
+            const base = { type: type, isSea: true, x, y, isRanged: false };
+            if (type === 'sea_bladefish') return Object.assign(base, { name: '🐟 칼날 물고기 떼', level: 63, radius: 26, seaScale: 1.5,
+                hp: 30000, maxHp: 30000, atk: 1000, speed: 6.2, meleeCd: 20, expValue: 5490, goldValue: 3310 });
+            if (type === 'sea_jelly') return Object.assign(base, { name: '🪼 번개 해파리', level: 64, radius: 26, seaScale: 1.7,
+                hp: 38000, maxHp: 38000, atk: 1050, speed: 1.6, meleeCd: 24,
+                isRanged: true, rangedColor: '#67e8f9', rangedSpeed: 8, rangedInterval: 48, rangedPatterns: 1,
+                expValue: 6140, goldValue: 3670 });
+            if (type === 'sea_puffer') return Object.assign(base, { name: '🐡 가시 복어', level: 65, radius: 28, seaScale: 2.04,
+                hp: 42000, maxHp: 42000, atk: 1100, speed: 1.5, meleeCd: 24, expValue: 6540, goldValue: 3880 });
+            if (type === 'sea_crab') return Object.assign(base, { name: '🦀 갑옷 게', level: 66, radius: 32, seaScale: 2.0,
+                hp: 62000, maxHp: 62000, atk: 1150, speed: 2.2, meleeCd: 22, expValue: 6860, goldValue: 4070 });
+            if (type === 'sea_shark') return Object.assign(base, { name: '🦈 상어', level: 68, radius: 48, seaScale: 4.0,
+                hp: 52000, maxHp: 52000, atk: 1300, speed: 6.2, meleeCd: 22,
+                isCharger: true, chargeSpeed: 15, chargeCooldown: 110, chargeWindup: 0, chargeTimer: 0, chargeAngle: 0,
+                expValue: 7820, goldValue: 4660 });
+            return Object.assign(base, { name: '🦑 붉은 새끼 오징어', level: 105, radius: 24, seaScale: 0.8, isMinion: true,
+                hp: 36000, maxHp: 36000, atk: 1200, speed: 6.0, meleeCd: 24, expValue: 1120, goldValue: 730 });
+        } else if (type === 'boss_kraken') {
+            return {
+                type: 'boss_kraken', spawnKey: 'boss_kraken', isSea: true, isKraken: true, dormant: true,
+                name: '🦑 수상한 꼬마 오징어', level: 1,
+                x: 17300, y: BRIDGE_Y, homeX: 17300, homeY: BRIDGE_Y, leashMinX: 15950, leashMaxX: WORLD_WIDTH,
+                radius: 24, hp: 950000, maxHp: 950000, atk: 3560, atkBase: 3560, canEnrage: true, speed: 5.4,
+                isRanged: false, isSupremeBoss: true, slamAnim: 0,
+                expValue: 50000, goldValue: 150000
             };
         } else if (type === 'croc_baby') {
             return {
@@ -3921,11 +3967,220 @@
         }
     }
 
+    // =========================================================================
+    // 심해 신전 몬스터 그림 (오른쪽을 보는 기준, 맞으면 하얗게 번쩍)
+    // =========================================================================
+    function drawSeaMonster(c, m, bob) {
+        const t = performance.now();
+        const W = m.hitFlash > 0;
+        const RAGE = !!m.enraged;
+        const F = (col) => W ? '#ffffff' : col;
+        const PI2 = Math.PI * 2;
+        const wf = m.walkFrame || 0;
+        c.lineCap = 'round'; c.lineJoin = 'round';
+        function eye(x, y, r, iris) {
+            c.fillStyle = W ? '#fff' : '#f8fafc'; c.beginPath(); c.arc(x, y, r, 0, PI2); c.fill();
+            c.fillStyle = W ? '#fff' : (iris || '#0f172a'); c.beginPath(); c.arc(x + r * 0.25, y, r * 0.55, 0, PI2); c.fill();
+            c.fillStyle = '#fff'; c.beginPath(); c.arc(x + r * 0.05, y - r * 0.3, r * 0.22, 0, PI2); c.fill();
+        }
+        function fish(x, y, s, body, belly, fin, phase) {
+            const sw = Math.sin(t * 0.012 + phase) * 0.25;
+            c.save(); c.translate(x, y); c.scale(s, s);
+            c.fillStyle = F(fin);                                            // 꼬리
+            c.save(); c.translate(-9, 0); c.rotate(sw);
+            c.beginPath(); c.moveTo(0, 0); c.lineTo(-8, -7); c.lineTo(-6, 0); c.lineTo(-8, 7); c.closePath(); c.fill(); c.restore();
+            c.fillStyle = F(body); c.beginPath(); c.ellipse(0, 0, 11, 5.5, 0, 0, PI2); c.fill();
+            c.fillStyle = F(belly); c.beginPath(); c.ellipse(1, 2, 9, 2.6, 0, 0, Math.PI); c.fill();
+            c.fillStyle = F('#e2e8f0');                                       // 칼날 등지느러미
+            c.beginPath(); c.moveTo(-6, -4); c.lineTo(2, -11); c.lineTo(6, -4.5); c.closePath(); c.fill();
+            c.strokeStyle = W ? '#fff' : '#94a3b8'; c.lineWidth = 0.8; c.stroke();
+            eye(6.5, -1, 2.2, '#b91c1c');
+            c.fillStyle = W ? '#fff' : '#f1f5f9'; c.beginPath(); c.moveTo(10, 1); c.lineTo(13, 2.5); c.lineTo(10, 3.2); c.fill();   // 이빨
+            c.restore();
+        }
+
+        if (m.type === 'sea_bladefish') {
+            // 🐟 칼날 물고기 떼: 은빛 물고기 3마리가 함께 헤엄
+            const y = bob * 0.4;
+            c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(0, 16, 18, 4, 0, 0, PI2); c.fill();
+            const school = [[-12, -12, 0.8], [6, -14, 0.85], [-2, -2, 1.0], [14, 0, 0.9], [-14, 8, 0.75], [4, 11, 0.85]];
+            school.forEach((q, i) => fish(q[0] + Math.sin(t * 0.004 + i) * 2, q[1] + y + Math.sin(t * 0.008 + i * 1.7) * 2, q[2], i % 2 ? '#475569' : '#64748b', '#e2e8f0', '#1e293b', i));
+
+        } else if (m.type === 'sea_jelly') {
+            // 🪼 번개 해파리: 반투명 갓, 빛나는 촉수, 몸에 전기
+            const pulse = Math.sin(t * 0.006 + wf) * 0.08;
+            const y = -6 + Math.sin(t * 0.004 + wf) * 3;
+            c.save();
+            if (!W) { c.shadowColor = '#22d3ee'; c.shadowBlur = 14; }
+            c.strokeStyle = W ? '#fff' : 'rgba(103, 232, 249, 0.85)'; c.lineWidth = 1.6;    // 촉수
+            for (let i = -3; i <= 3; i++) {
+                const x0 = i * 3.4;
+                c.beginPath(); c.moveTo(x0, y + 4);
+                for (let k = 1; k <= 4; k++) c.lineTo(x0 + Math.sin(t * 0.008 + i + k) * 2.5, y + 4 + k * 5.5);
+                c.stroke();
+            }
+            const g = c.createRadialGradient(0, y - 4, 2, 0, y - 2, 15);
+            g.addColorStop(0, W ? '#fff' : 'rgba(224, 242, 254, 0.95)'); g.addColorStop(0.6, W ? '#fff' : 'rgba(56, 189, 248, 0.7)'); g.addColorStop(1, W ? '#fff' : 'rgba(14, 116, 144, 0.55)');
+            c.fillStyle = g;
+            c.beginPath(); c.ellipse(0, y, 14 * (1 + pulse), 11 * (1 - pulse), 0, Math.PI, 0); c.quadraticCurveTo(10, y + 6, 0, y + 4); c.quadraticCurveTo(-10, y + 6, -14 * (1 + pulse), y); c.fill();
+            c.restore();
+            c.fillStyle = W ? '#fff' : 'rgba(165, 243, 252, 0.9)'; c.beginPath(); c.ellipse(-4, y - 6, 4, 2, -0.4, 0, PI2); c.fill();
+            if (!W) {                                                          // 전기 불꽃
+                c.strokeStyle = '#fef08a'; c.lineWidth = 1.4;
+                for (let k = 0; k < 2; k++) { const a = t * 0.01 + k * 3; const r = 15; c.beginPath(); c.moveTo(Math.cos(a) * r, y + Math.sin(a) * r * 0.6); c.lineTo(Math.cos(a) * (r + 5) + 2, y + Math.sin(a) * r * 0.6 - 3); c.lineTo(Math.cos(a) * (r + 8), y + Math.sin(a) * r * 0.6 + 1); c.stroke(); }
+            }
+            c.fillStyle = W ? '#fff' : '#0e7490'; c.beginPath(); c.arc(-4, y - 1, 1.3, 0, PI2); c.arc(4, y - 1, 1.3, 0, PI2); c.fill();
+
+        } else if (m.type === 'sea_puffer') {
+            // 🐡 가시 복어: 평소엔 작고 통통, 쏠 때 크게 부풀어 가시가 솟음
+            const inf = ((m.puffAnim || 0) > 0 || (m.stabAnim || 0) > 0) ? 1 : 0;
+            const R = inf ? 15 : 10.5;
+            const y = bob * 0.4 - 2;
+            c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(0, 15, 14, 4, 0, 0, PI2); c.fill();
+            c.fillStyle = F('#f59e0b');                                       // 꼬리·지느러미
+            c.save(); c.translate(-R - 2, y); c.rotate(Math.sin(t * 0.015) * 0.3); c.beginPath(); c.moveTo(0, 0); c.lineTo(-7, -5); c.lineTo(-7, 5); c.closePath(); c.fill(); c.restore();
+            c.strokeStyle = W ? '#fff' : '#78350f'; c.lineWidth = 1.6;          // 가시
+            const n = inf ? 18 : 10;
+            for (let i = 0; i < n; i++) { const a = i / n * PI2; const L = inf ? 7 : 3; c.beginPath(); c.moveTo(Math.cos(a) * R * 0.9, y + Math.sin(a) * R * 0.9); c.lineTo(Math.cos(a) * (R + L), y + Math.sin(a) * (R + L)); c.stroke(); }
+            c.fillStyle = F('#fbbf24'); c.beginPath(); c.arc(0, y, R, 0, PI2); c.fill();
+            c.fillStyle = F('#fef3c7'); c.beginPath(); c.ellipse(1, y + R * 0.35, R * 0.75, R * 0.5, 0, 0, Math.PI); c.fill();
+            c.fillStyle = W ? '#fff' : 'rgba(146, 64, 14, 0.55)';               // 점무늬
+            [[-4, -5], [2, -7], [-7, 0], [5, -2]].forEach(p => { c.beginPath(); c.arc(p[0] * R / 10.5, y + p[1] * R / 10.5, 1.4, 0, PI2); c.fill(); });
+            eye(R * 0.45, y - R * 0.3, inf ? 3.6 : 3, '#1e293b');
+            c.fillStyle = W ? '#fff' : '#9a3412'; c.beginPath(); c.ellipse(R * 0.85, y + R * 0.2, 2, inf ? 2.6 : 1.6, 0, 0, PI2); c.fill();   // 입
+
+        } else if (m.type === 'sea_crab') {
+            // 🦀 갑옷 게: 붉은 갑각, 큰 집게, 옆걸음
+            const y = bob * 0.3;
+            const pa = Math.max(m.pinchAnim || 0, m.punchAnim || 0); const pinch = pa > 0 ? Math.sin((Math.min(pa, 16) / 16) * Math.PI) : 0;
+            const step = Math.sin(wf * 1.2) * 2;
+            c.fillStyle = 'rgba(0,0,0,0.3)'; c.beginPath(); c.ellipse(0, 14, 22, 5, 0, 0, PI2); c.fill();
+            c.strokeStyle = F('#991b1b'); c.lineWidth = 2.6;                    // 다리
+            for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {
+                const bx = s * (6 + i * 3.5), st = (i % 2 ? step : -step);
+                c.beginPath(); c.moveTo(bx, 4 + y); c.lineTo(bx + s * 6, 8 + y + st * 0.5); c.lineTo(bx + s * 8, 14 + st * 0.3); c.stroke();
+            }
+            const g = c.createLinearGradient(0, -12 + y, 0, 8 + y); g.addColorStop(0, F('#ef4444')); g.addColorStop(1, F('#7f1d1d'));
+            c.fillStyle = g; c.beginPath(); c.ellipse(0, -1 + y, 16, 10, 0, 0, PI2); c.fill();
+            c.strokeStyle = W ? '#fff' : '#450a0a'; c.lineWidth = 1.4; c.stroke();
+            c.strokeStyle = W ? '#fff' : 'rgba(254, 202, 202, 0.6)'; c.lineWidth = 1;   // 갑옷 무늬
+            c.beginPath(); c.moveTo(-10, -4 + y); c.quadraticCurveTo(0, -9 + y, 10, -4 + y); c.moveTo(-8, 1 + y); c.quadraticCurveTo(0, -2 + y, 8, 1 + y); c.stroke();
+            c.strokeStyle = F('#7f1d1d'); c.lineWidth = 1.6;                    // 눈자루
+            c.beginPath(); c.moveTo(4, -9 + y); c.lineTo(5, -15 + y); c.moveTo(9, -8 + y); c.lineTo(11, -14 + y); c.stroke();
+            eye(5, -16 + y, 2.2); eye(11, -15 + y, 2.2);
+            for (const s of [1, -1]) {                                          // 집게 (앞쪽이 더 큼)
+                const big = s === 1 ? 1.25 : 0.9;
+                c.save(); c.translate(s * 15, -2 + y); c.scale(big, big);
+                c.fillStyle = F('#b91c1c');
+                c.beginPath(); c.ellipse(s * 6, -2, 6, 4.5, s * -0.4, 0, PI2); c.fill();
+                c.fillStyle = F('#dc2626');
+                c.save(); c.translate(s * 10, -4); c.rotate(s * (-0.35 - pinch * 0.4));
+                c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(s * 6, -6, s * 9, -2); c.lineTo(s * 2, 1); c.closePath(); c.fill(); c.restore();
+                c.save(); c.translate(s * 10, -2); c.rotate(s * (0.3 + pinch * 0.4));
+                c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(s * 6, 5, s * 8, 1); c.lineTo(s * 2, -1); c.closePath(); c.fill(); c.restore();
+                c.restore();
+            }
+
+        } else if (m.type === 'sea_shark') {
+            // 🦈 상어: 날렵한 몸, 큰 지느러미, 날카로운 이빨, 돌진할 때 입을 벌림
+            const y = bob * 0.3;
+            const open = (m.chargeTimer || 0) > 0 || (m.biteAnim || 0) > 0 ? 1 : 0;
+            const sw = Math.sin(t * 0.012 + wf) * 0.22;
+            c.fillStyle = 'rgba(0,0,0,0.28)'; c.beginPath(); c.ellipse(0, 14, 26, 5, 0, 0, PI2); c.fill();
+            c.fillStyle = F('#334155');                                       // 꼬리
+            c.save(); c.translate(-22, -2 + y); c.rotate(sw);
+            c.beginPath(); c.moveTo(4, 0); c.lineTo(-10, -13); c.lineTo(-6, 0); c.lineTo(-9, 9); c.closePath(); c.fill(); c.restore();
+            c.fillStyle = F('#475569');                                       // 몸
+            c.beginPath(); c.moveTo(-22, -2 + y); c.quadraticCurveTo(-6, -14 + y, 14, -9 + y); c.quadraticCurveTo(26, -6 + y, 28, -1 + y);
+            c.quadraticCurveTo(24, 6 + y, 10, 7 + y); c.quadraticCurveTo(-8, 8 + y, -22, -2 + y); c.closePath(); c.fill();
+            c.fillStyle = F('#e2e8f0'); c.beginPath(); c.moveTo(-14, 2 + y); c.quadraticCurveTo(4, 9 + y, 22, 3 + y); c.quadraticCurveTo(6, 4 + y, -14, 2 + y); c.fill();  // 흰 배
+            c.fillStyle = F('#334155');
+            c.beginPath(); c.moveTo(-4, -10 + y); c.lineTo(2, -24 + y); c.lineTo(8, -9 + y); c.closePath(); c.fill();   // 등지느러미
+            c.beginPath(); c.moveTo(2, 4 + y); c.lineTo(-6, 13 + y); c.lineTo(8, 6 + y); c.closePath(); c.fill();        // 가슴지느러미
+            c.strokeStyle = W ? '#fff' : '#1e293b'; c.lineWidth = 1;             // 아가미
+            for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(12 - i * 2.5, -4 + y); c.lineTo(11 - i * 2.5, 2 + y); c.stroke(); }
+            c.fillStyle = W ? '#fff' : '#0f172a'; c.beginPath(); c.arc(19, -4 + y, 1.6, 0, PI2); c.fill();
+            if (open) {                                                        // 벌린 입 + 이빨
+                c.fillStyle = W ? '#fff' : '#7f1d1d'; c.beginPath(); c.moveTo(28, -1 + y); c.lineTo(17, 2 + y); c.lineTo(26, 8 + y); c.closePath(); c.fill();
+                c.fillStyle = '#fff'; for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(18 + i * 3, 2 + y); c.lineTo(19.5 + i * 3, 4.5 + y); c.lineTo(21 + i * 3, 2 + y); c.fill(); c.beginPath(); c.moveTo(19 + i * 2.5, 7 + y); c.lineTo(20 + i * 2.5, 4.5 + y); c.lineTo(21.5 + i * 2.5, 7 + y); c.fill(); }
+            } else {
+                c.strokeStyle = W ? '#fff' : '#1e293b'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(27, 1 + y); c.quadraticCurveTo(22, 3 + y, 17, 2 + y); c.stroke();
+                c.fillStyle = '#fff'; for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(18 + i * 3, 2 + y); c.lineTo(19.5 + i * 3, 3.8 + y); c.lineTo(21 + i * 3, 2.2 + y); c.fill(); }
+            }
+
+        } else if (m.type === 'sea_squidling' || m.type === 'boss_kraken') {
+            // 🦑 크라켄 / 붉은 새끼 오징어 (같은 모양, 크기만 다름)
+            const isBoss = m.type === 'boss_kraken';
+            const red = (RAGE && !m.dormant) || m.type === 'sea_squidling';
+            const body = red ? '#b91c1c' : '#7e22ce', body2 = red ? '#ef4444' : '#a855f7', dark = red ? '#450a0a' : '#3b0764', spot = red ? '#fca5a5' : '#e9d5ff';
+            const slam = (m.slamAnim || 0) > 0 ? Math.sin(((m.slamAnim || 0) / 30) * Math.PI) : 0;
+            const y = bob * 0.25 + Math.sin(t * 0.003 + wf) * 2;
+            if (isBoss && !W && !m.dormant) {                                  // 기운
+                c.fillStyle = red ? `rgba(239, 68, 68, ${0.18 + Math.sin(t * 0.006) * 0.08})` : 'rgba(168, 85, 247, 0.14)';
+                c.beginPath(); c.ellipse(0, -6, 60, 48, 0, 0, PI2); c.fill();
+            }
+            c.fillStyle = 'rgba(0,0,0,0.3)'; c.beginPath(); c.ellipse(0, 22, 40, 8, 0, 0, PI2); c.fill();
+            // 촉수 8개 (물결치듯)
+            for (let i = 0; i < 8; i++) {
+                const bx = -16 + i * 4.6, len = 26 + (i % 3) * 4, ph = t * 0.005 + i * 0.8;
+                const lift = (i === 1 || i === 6) ? slam : 0;
+                c.strokeStyle = F(i % 2 ? body : dark); c.lineWidth = 5 - Math.abs(i - 3.5) * 0.3;
+                c.beginPath(); c.moveTo(bx, 2 + y);
+                const ex = bx + Math.sin(ph) * 8 + (i - 3.5) * 3, ey = 2 + len - lift * 30 + y;
+                c.quadraticCurveTo(bx + Math.sin(ph + 1) * 10, 2 + len * 0.55 + y, ex, ey);
+                c.stroke();
+                c.fillStyle = F(spot);                                         // 빨판
+                for (let k = 1; k <= 3; k++) { const f = k / 4; c.beginPath(); c.arc(bx + (ex - bx) * f + 1.2, 2 + (ey - 2 - y) * f + y, 0.9, 0, PI2); c.fill(); }
+                c.fillStyle = F(body2); c.beginPath(); c.arc(ex, ey, 2.2, 0, PI2); c.fill();
+            }
+            // 긴 촉수 2개 (공격용)
+            c.strokeStyle = F(body); c.lineWidth = 3.2;
+            for (const s of [-1, 1]) {
+                c.beginPath(); c.moveTo(s * 10, 4 + y);
+                c.bezierCurveTo(s * 30, 14 + y, s * 34 - slam * s * 10, -6 + y - slam * 20, s * 42, -2 + y - slam * 26); c.stroke();
+                c.fillStyle = F(body2); c.beginPath(); c.ellipse(s * 42, -2 + y - slam * 26, 5, 3.4, s * 0.5, 0, PI2); c.fill();
+            }
+            // 머리(외투막): 위로 뾰족
+            const g = c.createLinearGradient(0, -48 + y, 0, 6 + y); g.addColorStop(0, F(body2)); g.addColorStop(1, F(body));
+            c.fillStyle = g;
+            c.beginPath(); c.moveTo(0, -52 + y); c.quadraticCurveTo(22, -40 + y, 20, -6 + y); c.quadraticCurveTo(10, 6 + y, 0, 6 + y); c.quadraticCurveTo(-10, 6 + y, -20, -6 + y); c.quadraticCurveTo(-22, -40 + y, 0, -52 + y); c.closePath(); c.fill();
+            c.strokeStyle = W ? '#fff' : dark; c.lineWidth = 1.6; c.stroke();
+            c.fillStyle = F(body); c.beginPath(); c.moveTo(-6, -50 + y); c.lineTo(-24, -58 + y); c.lineTo(-14, -42 + y); c.closePath(); c.moveTo(6, -50 + y); c.lineTo(24, -58 + y); c.lineTo(14, -42 + y); c.closePath(); c.fill();  // 지느러미
+            c.fillStyle = W ? '#fff' : (red ? 'rgba(254, 202, 202, 0.6)' : 'rgba(233, 213, 255, 0.55)');   // 반점
+            [[-9, -30, 3], [7, -36, 2.4], [-3, -42, 2], [11, -22, 2.6], [-12, -16, 2.2]].forEach(p => { c.beginPath(); c.arc(p[0], p[1] + y, p[2], 0, PI2); c.fill(); });
+            if (red && !W) {                                                   // 분노: 빛나는 핏줄
+                c.save(); c.shadowColor = '#f87171'; c.shadowBlur = 8; c.strokeStyle = 'rgba(254, 226, 226, 0.8)'; c.lineWidth = 1;
+                c.beginPath(); c.moveTo(0, -48 + y); c.lineTo(-4, -34 + y); c.lineTo(2, -24 + y); c.lineTo(-3, -10 + y); c.moveTo(-4, -34 + y); c.lineTo(-12, -28 + y); c.moveTo(2, -24 + y); c.lineTo(12, -18 + y); c.stroke(); c.restore();
+            }
+            // 큰 눈 2개
+            for (const s of [-1, 1]) {
+                c.fillStyle = W ? '#fff' : (red ? '#fef08a' : '#fde68a'); c.beginPath(); c.ellipse(s * 9, -6 + y, 6, 7, 0, 0, PI2); c.fill();
+                c.strokeStyle = W ? '#fff' : dark; c.lineWidth = 1.4; c.stroke();
+                c.fillStyle = W ? '#fff' : '#0f172a'; c.beginPath(); c.ellipse(s * 9 + 1, -5 + y, 1.6, 5, 0, 0, PI2); c.fill();   // 가로로 긴 동공
+                c.fillStyle = '#fff'; c.beginPath(); c.arc(s * 9 - 1.5, -9 + y, 1.3, 0, PI2); c.fill();
+            }
+        }
+    }
+
+    // 크라켄의 촉수가 땅(바닥)에서 솟아오르는 모습: p = 0 → 1
+    function drawSeaTentacle(c, p, red) {
+        const h = Math.sin(Math.min(1, p) * Math.PI) * 110;
+        c.save();
+        c.fillStyle = 'rgba(15, 23, 42, 0.5)'; c.beginPath(); c.ellipse(0, 0, 26, 9, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = red ? '#b91c1c' : '#7e22ce'; c.lineWidth = 16;
+        c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-14, -h * 0.5, 6, -h); c.stroke();
+        c.strokeStyle = red ? '#ef4444' : '#a855f7'; c.lineWidth = 8;
+        c.beginPath(); c.moveTo(2, -4); c.quadraticCurveTo(-10, -h * 0.5, 6, -h); c.stroke();
+        c.fillStyle = red ? '#fecaca' : '#f3e8ff';
+        for (let k = 1; k <= 5; k++) { const f = k / 6; c.beginPath(); c.arc(-8 * Math.sin(f * Math.PI) + 8 * f, -h * f, 2.4, 0, Math.PI * 2); c.fill(); }
+        c.restore();
+    }
+
     function renderMonsterAppearance(targetCtx, m, facing) {
         const isBoss = m.type.startsWith('boss') && !m.isMinion;
         const isMinotaur = m.type === 'minotaur';
         const isDragon = m.type === 'dragon' || m.type === 'lava_titan' || m.type === 'frost_wyvern' || m.type === 'boss_dragon';
-        const scale = m.stoneScale ? m.stoneScale : m.swampScale ? m.swampScale : m.isKatydidBoss
+        const scale = m.isSea ? seaScaleOf(m) : m.stoneScale ? m.stoneScale : m.swampScale ? m.swampScale : m.isKatydidBoss
             ? (m.katydidScale || 3.0)
             : (m.type === 'ice_golem'
                 ? (m.golemScale || 1.25)
@@ -3945,7 +4200,9 @@
         targetCtx.translate(0, -jumpLift);
         targetCtx.scale(facing * scale, scale);
 
-        if (m.isStone) {
+        if (m.isSea) {
+            drawSeaMonster(targetCtx, m, bob);
+        } else if (m.isStone) {
             drawGolemMonster(targetCtx, m, bob);
         } else if (m.isSwamp) {
             drawSwampMonster(targetCtx, m, bob);
@@ -4649,6 +4906,7 @@
         else if (dest === 'celestial') { player.x = 7200; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🪐 별무리 행성에 진입했습니다!", "#e879f9"); }
         else if (dest === 'hornet_nest') { player.x = 8500; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🐝 맹독 말벌둥지에 진입했습니다!", "#facc15"); }
         else if (dest === 'grass_nest') { player.x = 10250; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🌿 거대 풀숲 둥지에 진입했습니다! (흡혈모기 & 여치보스 주의)", "#a3e635"); }
+        else if (dest === 'sea') { player.x = 16100; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🌊 심해 신전에 들어왔습니다! (거품 기둥 안에 있으면 체력·마나가 조금씩 찹니다)", "#7dd3fc"); }
         else if (dest === 'golem') { player.x = 14100; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🗿 골렘 마을에 들어왔습니다! (골렘 20마리를 쓰러뜨리면 거신이 깨어납니다)", "#fdba74"); }
         else if (dest === 'swamp') { player.x = 12150; player.y = BRIDGE_Y; addFloatingText(player.x, player.y - 45, "🐊 그림자 늪에 들어왔습니다! (Lv.45 이상 고레벨 사냥터)", "#5eead4"); }
         for (const pet of pets) { pet.x = player.x; pet.y = player.y; }
@@ -4835,6 +5093,11 @@
         dmg = Math.max(0, Math.round(dmg));
         // 방장이 아닌 사람: 방장에게 "때렸다"고 알리고, 화면에는 바로 보여줌
         if (m.emergeTimer > 0) return;
+        if (m.dormant) {
+            if (mpRole === 'client') { if (window.MPNet && m.nid) window.MPNet.queueHit(m.nid, dmg, 0); m.hitFlash = 6; return; }
+            mpKrakenAwake(m);
+            return;
+        }
         if (mpRole === 'client') {
             if (window.MPNet && m.nid) window.MPNet.queueHit(m.nid, dmg, frz || 0);
             const shown = m.enraged && !m.isCrocBaby ? Math.max(1, Math.round(dmg * 0.5)) : dmg;
@@ -4956,8 +5219,8 @@
     }
 
     // ---- 업그레이드 공통 함수 ----
-    const BOSS_GOLD = { boss_orc: 1200, boss_archmage: 2100, boss_dragon: 4200, boss_celestial: 10000, boss_apocalypse: 15000, boss_katydid_1: 40000, boss_katydid_2: 50000, boss_swamp_croc: 80000, boss_golem_king: 120000 };
-    const BOSS_EXP_FRAC = { boss_orc: 1/8, boss_archmage: 1/6, boss_dragon: 1/5, boss_celestial: 1/4, boss_apocalypse: 3/8, boss_katydid_1: 1/2, boss_katydid_2: 2/3, boss_swamp_croc: 1, croc_pack: 1, boss_golem_king: 1.5 };
+    const BOSS_GOLD = { boss_orc: 1200, boss_archmage: 2100, boss_dragon: 4200, boss_celestial: 10000, boss_apocalypse: 15000, boss_katydid_1: 40000, boss_katydid_2: 50000, boss_swamp_croc: 80000, boss_golem_king: 120000, boss_kraken: 150000 };
+    const BOSS_EXP_FRAC = { boss_orc: 1/8, boss_archmage: 1/6, boss_dragon: 1/5, boss_celestial: 1/4, boss_apocalypse: 3/8, boss_katydid_1: 1/2, boss_katydid_2: 2/3, boss_swamp_croc: 1, croc_pack: 1, boss_golem_king: 1.5, boss_kraken: 1.5 };
     function computeKillExp(type, baseExp) {
         baseExp = Number(baseExp) || 0;
         const frac0 = BOSS_EXP_FRAC[type];
@@ -5293,7 +5556,8 @@
         else if (player.x < 10100) zoneEl.innerHTML = `<i class="fa-solid fa-bugs text-amber-400"></i> 맹독 말벌둥지`;
         else if (player.x < 11900) zoneEl.innerHTML = `<i class="fa-solid fa-locust text-lime-400"></i> 거대 풀숲 둥지`;
         else if (player.x < 13900) zoneEl.innerHTML = `<i class="fa-solid fa-frog text-teal-300"></i> 그림자 늪`;
-        else zoneEl.innerHTML = `<i class="fa-solid fa-mountain text-orange-400"></i> 골렘 마을`;
+        else if (player.x < 15900) zoneEl.innerHTML = `<i class="fa-solid fa-mountain text-orange-400"></i> 골렘 마을`;
+        else zoneEl.innerHTML = `<i class="fa-solid fa-water text-sky-300"></i> 심해 신전`;
 
         const thunderCdEl = document.getElementById('ui-thunder-cd');
         if (thunderCdEl) {
@@ -5362,7 +5626,14 @@
         { type: 'golem_crystal', name: '💎 흑요석 수정 골렘', rank: '★★★★★ (수정 사수)', height: '2.8 m', weight: '1,900.0 kg', habitat: '골렘 마을 갈라진 땅 틈', bgTheme: '#1c1917', combatDesc: '등의 주황빛 수정 조각을 5갈래로 발사', lore: '검은 유리처럼 매끈한 흑요석 몸을 가진 골렘. 등에 돋은 주황빛 수정을 떼어 부채꼴로 쏘아 보낸다.' },
         { type: 'golem_magma', name: '🌋 용암 심장 골렘', rank: '★★★★★ (중장갑 골렘)', height: '3.4 m', weight: '6,800.0 kg', habitat: '골렘 마을 깊은 곳', bgTheme: '#1c1917', combatDesc: '거대한 주먹으로 땅을 내려쳐 주변 전체에 용암 충격파', lore: '가슴 속에 녹은 용암 심장이 이글거리는 거구의 골렘. 느리지만 한번 땅을 내려치면 주변이 모두 흔들린다.' },
         { type: 'golem_lava_imp', name: '🔥 용암 꼬마 골렘', rank: '★★★★★ (분노한 거신의 부하)', height: '1.4 m', weight: '450.0 kg', habitat: '골렘 마을 (분노한 거신 골렘왕 주변)', bgTheme: '#450a0a', combatDesc: '나보다 빠르게 달려와 박치기', lore: '분노한 거신 골렘왕의 용암에서 솟아난 꼬마 골렘. 온몸의 금이 붉게 달아올라 있다.' },
-        { type: 'boss_golem_king', name: '★★★★★★★ 고대 거신 골렘왕', rank: '★★★★★★★ (아르카나 최강 보스)', height: '26.0 m', weight: '52,000.0 kg', habitat: '골렘 마을 땅속 (골렘 20마리를 쓰러뜨리면 등장)', bgTheme: '#1c1917', combatDesc: '주먹 + 순간이동 + 바위 던지기(맞으면 3초 기절) + 땅 내려치기(3초간 공격 속도 0.8배) + 낙석 비 + 굴러오기 · 체력 절반 이하면 몸에 용암이 흐르며 분노', lore: '골렘 마을 땅속 깊이 잠들어 있던 고대의 거신. 마을의 골렘들이 쓰러지면 땅을 가르고 솟아오른다. 바위 왕관을 쓰고, 몸의 룬이 주황빛으로 타오른다.' }
+        { type: 'boss_golem_king', name: '★★★★★★★ 고대 거신 골렘왕', rank: '★★★★★★★ (아르카나 최강 보스)', height: '26.0 m', weight: '52,000.0 kg', habitat: '골렘 마을 땅속 (골렘 20마리를 쓰러뜨리면 등장)', bgTheme: '#1c1917', combatDesc: '주먹 + 순간이동 + 바위 던지기(맞으면 3초 기절) + 땅 내려치기(3초간 공격 속도 0.8배) + 낙석 비 + 굴러오기 · 체력 절반 이하면 몸에 용암이 흐르며 분노', lore: '골렘 마을 땅속 깊이 잠들어 있던 고대의 거신. 마을의 골렘들이 쓰러지면 땅을 가르고 솟아오른다. 바위 왕관을 쓰고, 몸의 룬이 주황빛으로 타오른다.' },
+        { type: 'sea_bladefish', name: '🐟 칼날 물고기 떼', rank: '★★★★★ (심해 떼거리)', height: '0.6 m', weight: '4.0 kg', habitat: '심해 신전', bgTheme: '#082f49', combatDesc: '여섯 마리가 떼로 몰려와 나보다 빠르게 지나가며 베기', lore: '등지느러미가 칼날처럼 날카로운 은빛 물고기들. 늘 여섯 마리가 함께 다니며 먹잇감을 둘러싸고 벤다.' },
+        { type: 'sea_jelly', name: '🪼 번개 해파리', rank: '★★★★★ (원거리 · 감전)', height: '1.5 m', weight: '30.0 kg', habitat: '심해 신전 빛줄기 아래', bgTheme: '#082f49', combatDesc: '전기 구슬 발사 + 닿으면 감전되어 1초간 느려짐', lore: '몸속에 번개를 품은 반투명 해파리. 둥둥 떠다니며 전기 구슬을 쏘고, 촉수에 닿으면 몸이 찌릿하게 굳는다.' },
+        { type: 'sea_puffer', name: '🐡 가시 복어', rank: '★★★★★ (원거리 가시)', height: '1.2 m', weight: '60.0 kg', habitat: '심해 신전 산호 사이', bgTheme: '#082f49', combatDesc: '크게 부풀어 가시 10개를 사방으로 발사', lore: '평소엔 통통하고 귀엽지만, 화가 나면 공처럼 부풀어 온몸의 가시를 사방으로 날린다.' },
+        { type: 'sea_crab', name: '🦀 갑옷 게', rank: '★★★★★ (중장갑)', height: '1.6 m', weight: '900.0 kg', habitat: '심해 신전 기둥 아래', bgTheme: '#082f49', combatDesc: '단단한 갑옷 + 옆으로 빠르게 이동 + 큰 집게로 세게 집기', lore: '신전 기둥을 지키는 붉은 게. 갑옷 같은 등딱지는 웬만한 마법도 튕겨 내고, 옆걸음으로 재빠르게 파고든다.' },
+        { type: 'sea_shark', name: '🦈 상어', rank: '★★★★★ (심해의 사냥꾼)', height: '7.0 m', weight: '2,200.0 kg', habitat: '심해 신전 전체', bgTheme: '#082f49', combatDesc: '나보다 빠르게 헤엄쳐 입을 벌리고 돌진해 물기', lore: '심해 신전에서 가장 빠른 사냥꾼. 먹잇감을 발견하면 거대한 입을 벌리고 순식간에 돌진한다.' },
+        { type: 'sea_squidling', name: '🦑 붉은 새끼 오징어', rank: '★★★★★ (분노한 크라켄의 새끼)', height: '1.8 m', weight: '80.0 kg', habitat: '심해 신전 (분노한 크라켄 주변)', bgTheme: '#450a0a', combatDesc: '깨물기 + 2초간 달라붙어 체력 빨기 + 먹물 쏘기', lore: '분노해 붉어진 크라켄이 낳는 새끼들. 작지만 끈질기게 달라붙고, 먹물을 뱉어 공격한다.' },
+        { type: 'boss_kraken', name: '★★★★★★★ 심해의 왕 크라켄', rank: '★★★★★★★ (심해의 지배자)', height: '30.0 m', weight: '75,000.0 kg', habitat: '심해 신전 가장 깊은 곳 (꼬마 오징어로 숨어 있음)', bgTheme: '#2e1065', combatDesc: '촉수 휘두르기 + 바닥에서 솟는 촉수 + 먹물 대포 + 소용돌이 · 체력 절반 이하면 붉게 분노(피해 감소·회피·새끼 오징어)', lore: '평소엔 수상한 꼬마 오징어로 모습을 숨기고 있다가, 누군가 공격하는 순간 거대한 본모습을 드러내는 심해의 왕. 신전 바닥 곳곳에서 촉수를 솟구치게 한다.' }
     ];
 
     let currentPokedexIndex = 0;
@@ -5817,7 +6088,7 @@
             const len = Math.hypot(dx, dy); dx /= len; dy /= len;
             player.moveAngle = Math.atan2(dy, dx);
             const buffMult = (player.superBuffTimer > 0 ? 1.35 : 1) * (player.speedBootsTimer > 0 ? 1.75 : 1);
-            const spd = player.speed * buffMult;
+            const spd = player.speed * buffMult * (player.mslowTimer > 0 ? 0.6 : 1);   // 번개 해파리 감전: 1초간 느려짐
             let nextX = player.x + dx * spd, nextY = player.y + dy * spd;
             const onBridge = Math.abs(nextY - BRIDGE_Y) < 65 || Math.abs(nextY - NORTH_BRIDGE_Y) < 55;
             if (!(Math.abs(nextX - RIVER_X) < 38 && !onBridge)) {
@@ -6005,7 +6276,7 @@
         for (const m of monsters) {
             const P = mpPickTarget(m);
             if (m.canEnrage) m.atk = m.enraged ? mpEnragedAtk(m, P) : (m.atkBase || m.atk);
-            if (m.isStone) { if (m.throwAnim > 0) m.throwAnim--; if (m.slamAnim > 0) m.slamAnim--; if (m.punchAnim > 0) m.punchAnim--; }
+            if (m.isStone || m.isSea) { if (m.throwAnim > 0) m.throwAnim--; if (!m.isKraken && m.slamAnim > 0) m.slamAnim--; if (m.punchAnim > 0) m.punchAnim--; if (m.isSea && m.biteAnim > 0) m.biteAnim--; }
             if (m.hitFlash > 0) m.hitFlash--;
             if (m.attackCooldown > 0) m.attackCooldown--;
             if (m.stabAnim && m.stabAnim > 0) m.stabAnim--;
@@ -6156,6 +6427,10 @@
                     mpCrocAI(m, P, ang, dist);
                 } else if (m.isGolemKing) {
                     mpGolemKingAI(m, P, ang, dist);
+                } else if (m.isKraken) {
+                    mpKrakenAI(m, P, ang, dist);
+                } else if (m.type === 'sea_squidling') {
+                    mpSquidlingAI(m, P, ang, dist);
                 } else if (m.isCharger) {
                     if (m.chargeTimer > 0) {
                         m.chargeTimer--;
@@ -6195,19 +6470,24 @@
                         m.attackCooldown = m.meleeCd || 45;
                         addFloatingText(P.x, P.y - 35, "🛡️ 무적 방어!", "#38bdf8");
                     } else {
-                        const hitDmg = (m.isCroc || m.isGolemKing) ? Math.floor(m.atk * 1.3) : m.isKatydidBoss ? Math.floor(m.atk * 1.15) : ((m.isCharger && m.chargeTimer > 0) ? Math.floor(m.atk * 1.35) : m.atk);
+                        const hitDmg = (m.isCroc || m.isGolemKing || m.isKraken) ? Math.floor(m.atk * 1.3) : m.isKatydidBoss ? Math.floor(m.atk * 1.15) : ((m.isCharger && m.chargeTimer > 0) ? Math.floor(m.atk * 1.35) : m.atk);
                         P.hp -= hitDmg;
                         P.invincibleTimer = 32;
                         m.attackCooldown = m.meleeCd || 45;
                         if (!P.isProxy) screenShake = 14;
                         if (m.isCroc) m.biteAnim = 24;
                         if (m.isGolemKing) m.punchAnim = 18;
-                        addFloatingText(P.x, P.y - 32, m.isGolemKing ? `🗿 거신의 주먹!! -${hitDmg}` : m.isCroc ? `🐊 고대 악어의 강철 턱 깨물기!! -${hitDmg}` : m.isKatydidBoss ? `🦗 강철턱 깨물기! -${hitDmg}` : (m.type === 'ice_golem' ? `❄️ 고드름 창 찌르기! -${hitDmg}` : `-${hitDmg}`), '#f43f5e');
+                        if (m.isKraken) m.slamAnim = 30;
+                        if (m.type === 'sea_shark') m.biteAnim = 20;
+                        if (m.type === 'sea_crab') m.punchAnim = 16;
+                        if (m.type === 'sea_jelly') { if (P.isProxy) mpQueueFx('st', { u: P.uid, e: 'mslow', s: 1 }); else mpApplyDebuff('mslow', 1); }
+                        addFloatingText(P.x, P.y - 32, m.isKraken ? `🦑 크라켄의 촉수 휘두르기!! -${hitDmg}` : m.type === 'sea_shark' ? `🦈 상어에게 물렸습니다! -${hitDmg}` : m.type === 'sea_crab' ? `🦀 집게에 집혔습니다! -${hitDmg}` : m.type === 'sea_jelly' ? `⚡ 감전! -${hitDmg}` : m.isGolemKing ? `🗿 거신의 주먹!! -${hitDmg}` : m.isCroc ? `🐊 고대 악어의 강철 턱 깨물기!! -${hitDmg}` : m.isKatydidBoss ? `🦗 강철턱 깨물기! -${hitDmg}` : (m.type === 'ice_golem' ? `❄️ 고드름 창 찌르기! -${hitDmg}` : `-${hitDmg}`), '#f43f5e');
                         playSound('hit');
                         if (P.hp <= 0) { handlePlayerDeath(); break; }
                     }
                 }
 
+                if (m.isSea) mpSeaExtra(m, P, ang, dist);
                 if (m.type === 'golem_magma') {
                     m.slamTimer = (m.slamTimer || 120) - 1;
                     if (m.slamTimer <= 0 && dist < 230) {
@@ -6284,7 +6564,7 @@
                     }
                 }
 
-                if (m.isSupremeBoss && !m.isKatydidBoss && !m.isCroc && !m.isGolemKing) {
+                if (m.isSupremeBoss && !m.isKatydidBoss && !m.isCroc && !m.isGolemKing && !m.isKraken) {
                     m.lightningTimer = (m.lightningTimer || 100) - 1;
                     if (m.lightningTimer <= 0) {
                         m.lightningTimer = m.type === 'boss_apocalypse' ? 85 : 105;
@@ -6397,6 +6677,7 @@
         }
 
         mpGolemTick();
+        mpSeaTick();
         for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
             const ep = enemyProjectiles[i];
             ep.x += ep.vx; ep.y += ep.vy; ep.life--;
@@ -6487,7 +6768,8 @@
         ctx.fillStyle = '#3b2506'; ctx.fillRect(8400, 0, 1700, WORLD_HEIGHT);
         ctx.fillStyle = '#14330a'; ctx.fillRect(10100, 0, 1800, WORLD_HEIGHT);
         ctx.fillStyle = '#10261f'; ctx.fillRect(11900, 0, 2000, WORLD_HEIGHT);
-        ctx.fillStyle = '#16120f'; ctx.fillRect(13900, 0, WORLD_WIDTH - 13900, WORLD_HEIGHT);
+        ctx.fillStyle = '#16120f'; ctx.fillRect(13900, 0, 2000, WORLD_HEIGHT);
+        { const sg = ctx.createLinearGradient(0, 0, 0, WORLD_HEIGHT); sg.addColorStop(0, '#0e4a6e'); sg.addColorStop(1, '#061a33'); ctx.fillStyle = sg; ctx.fillRect(15900, 0, WORLD_WIDTH - 15900, WORLD_HEIGHT); }
         for (const sp of swampPools) {
             if (Math.abs(sp.x - player.x) > canvas.width / cameraZoom + 250) continue;
             ctx.fillStyle = 'rgba(13, 148, 136, 0.26)';
@@ -6497,6 +6779,7 @@
             ctx.beginPath(); ctx.ellipse(sp.x - sp.rx * 0.35, sp.y - sp.ry * 0.1, 9, 5, 0.3, 0, Math.PI * 2); ctx.ellipse(sp.x + sp.rx * 0.25, sp.y + sp.ry * 0.25, 7, 4, -0.4, 0, Math.PI * 2); ctx.fill();
         }
         if (player.x + canvas.width / cameraZoom + 300 > 13900) mpDrawGolemGround();
+        if (player.x + canvas.width / cameraZoom + 300 > 15900) mpDrawSeaGround();
 
         ctx.fillStyle = '#a8a29e';
         ctx.fillRect(260, BRIDGE_Y - 42, RIVER_X + 120, 84);
@@ -6685,6 +6968,7 @@
             }
         }
         mpDrawGolemFx();
+        mpDrawSeaFx();
         const tongues = window.__tongues || [];
         for (let ti = tongues.length - 1; ti >= 0; ti--) {
             const tg = tongues[ti];
@@ -6737,6 +7021,12 @@
 
         for (const t of trees) {
             if (Math.abs(t.x - player.x) > (canvas.width / cameraZoom) * 0.85) continue;
+            if (t.type === 'sea') {     // 심해: 나무 대신 큰 해초 덤불
+                const sw = Math.sin(performance.now() * 0.0015 + t.x) * 6;
+                ctx.strokeStyle = '#166534'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+                for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(t.x + k * 10, t.y + 14); ctx.bezierCurveTo(t.x + k * 14 + 8, t.y - t.radius * 0.5, t.x + k * 6 - 8 + sw * 0.6, t.y - t.radius, t.x + k * 10 + sw, t.y - t.radius * 1.5); ctx.stroke(); }
+                continue;
+            }
             if (t.type === 'golem') {   // 골렘 마을: 나무 대신 뾰족한 바위 기둥
                 ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(t.x, t.y + 14, t.radius * 0.8, 9, 0, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = '#3f3a36'; ctx.beginPath(); ctx.moveTo(t.x - t.radius * 0.6, t.y + 14); ctx.lineTo(t.x - t.radius * 0.25, t.y - t.radius * 1.3); ctx.lineTo(t.x + 4, t.y - t.radius * 1.6); ctx.lineTo(t.x + t.radius * 0.35, t.y - t.radius * 0.9); ctx.lineTo(t.x + t.radius * 0.65, t.y + 14); ctx.closePath(); ctx.fill();
@@ -7060,7 +7350,7 @@
         const bits = '' + (m.frozenTimer > 0 ? 1 : 0) + (m.chargeTimer > 0 ? 1 : 0) + (m.chargeWindup > 0 ? 1 : 0) +
             ((m.stabAnim || 0) > 0 ? 1 : 0) + ((m.wingFlapAnim || 0) > 0 ? 1 : 0) + (m.latched ? 1 : 0) + ((m.hitFlash || 0) > 0 ? 1 : 0) +
             ((m.biteAnim || 0) > 0 ? 1 : 0) + ((m.tailAnim || 0) > 0 ? 1 : 0) + ((m.spikeAnim || 0) > 0 ? 1 : 0) + (m.enraged ? 1 : 0) +
-            ((m.throwAnim || 0) > 0 ? 1 : 0) + ((m.slamAnim || 0) > 0 ? 1 : 0) + ((m.punchAnim || 0) > 0 ? 1 : 0);
+            ((m.throwAnim || 0) > 0 ? 1 : 0) + ((m.slamAnim || 0) > 0 ? 1 : 0) + ((m.punchAnim || 0) > 0 ? 1 : 0) + (m.dormant ? 1 : 0);
         return [m.type, Math.round(m.x), Math.round(m.y), Math.max(0, Math.round(m.hp)),
             Math.round(m.homeX || m.x), Math.round(m.homeY || m.y), bits, Math.round(m.jumpHeight || 0),
             m.chargeTimer > 0 ? Math.round((m.chargeAngle || 0) * 100) / 100 : 0, m.spawnKey || '',
@@ -7188,6 +7478,11 @@
         m.throwAnim = b[11] === '1' ? (m.type === 'golem_thrower' ? 10 : 13) : 0;
         m.slamAnim = b[12] === '1' ? (m.type === 'golem_magma' ? 12 : 15) : 0;
         m.punchAnim = b[13] === '1' ? 9 : 0;
+        if (m.type === 'boss_kraken') {
+            m.dormant = b[14] === '1';
+            if (m.dormant) { m.name = '🦑 수상한 꼬마 오징어'; m.level = 1; m.radius = 24; }
+            else { m.name = '★★★★★★★ 심해의 왕 크라켄'; m.level = 130; m.radius = 150; }
+        }
         m.emergeTimer = +a[11] || 0;
         m.jumpHeight = +a[7] || 0;
         m.jumpTimer = m.jumpHeight > 0 ? 1 : 0;
@@ -7253,6 +7548,11 @@
             }
         } else if (d.k === 'tp') {
             mpTeleportFx(d.x1, d.y1, d.x2, d.y2, !!d.e, d.c);
+        } else if (d.k === 'tn') {
+            const el = Math.max(0, Math.min((d.d || 50) - 1, Math.round((window.serverNow() - d.t) / 16.7)));
+            seaTentacles.push({ x: d.x, y: d.y, t: el, d: d.d, r: d.r, dmg: 0, red: !!d.e, hit: false, host: false });
+        } else if (d.k === 'pl') {
+            if (d.u === window.cloudUserId) { player.pullTimer = d.f || 60; player.pullX = d.x; player.pullY = d.y; addFloatingText(player.x, player.y - 60, '🌀 소용돌이에 끌려갑니다!', '#7dd3fc'); }
         } else if (d.k === 'bd') {
             const el = Math.max(0, Math.min((d.d || 50) - 1, Math.round((window.serverNow() - d.t) / 16.7)));
             golemBoulders.push({ x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, t: el, d: d.d, r: d.r, stun: !!d.s, sky: !!d.q, host: false });
@@ -7373,6 +7673,7 @@
                 if (pts.some(p => Math.hypot(p.x - m.x, p.y - m.y) < range)) m.lastNearAt = now;
                 else if (now - (m.lastNearAt || 0) > 3000 && m.hp < m.maxHp) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * (isBossMon ? 0.025 : 0.05) * dt);
                 if (m.enraged && m.canEnrage && !m.isPack && m.hp >= m.maxHp) m.enraged = false;
+                if (m.isKraken && !m.dormant && !(m.emergeTimer > 0) && m.hp >= m.maxHp && now - (m.lastNearAt || 0) > 10000) mpKrakenSleep(m);
             }
         }
         if (mpRole !== 'client' && now - mpLastCroc >= 500) { mpLastCroc = now; mpCrocWaveTick(now); }
@@ -7434,14 +7735,14 @@
 
     function mpEnragedAtk(m, P) {
         const lv = (P && P.level) || player.level || 1;
-        if (m.isCroc || m.isGolemKing) return Math.round((m.atkBase || m.atk) * 2);   // 빨간 악어 · 골렘왕: 보통 상태의 2배
+        if (m.isCroc || m.isGolemKing || m.isKraken) return Math.round((m.atkBase || m.atk) * 2);   // 빨간 악어 · 골렘왕: 보통 상태의 2배
         return Math.round((m.atkBase || m.atk) * (1.5 + 0.05 * lv)); // 여치: Lv20이면 2.5배
     }
     function mpEnrage(m) {
         if (m.enraged) return;
         m.enraged = true;
         m.babyTimer = 600;
-        mpCrocSay(m, m.isCroc || m.isGolemKing ? 170 : 130, m.isGolemKing ? "🔥 골렘왕의 몸에서 붉은 용암이 흘러내립니다!!" : m.isCroc ? "🔴 고대 악어가 분노해 붉게 변했습니다!!" : "🔴 여치가 분노해 붉게 변했습니다!!", "#f87171");
+        mpCrocSay(m, m.isCroc || m.isGolemKing ? 170 : 130, m.isKraken ? "🔴 크라켄이 분노해 붉게 변했습니다!!" : m.isGolemKing ? "🔥 골렘왕의 몸에서 붉은 용암이 흘러내립니다!!" : m.isCroc ? "🔴 고대 악어가 분노해 붉게 변했습니다!!" : "🔴 여치가 분노해 붉게 변했습니다!!", "#f87171");
         playSound('thunder');
     }
     function mpPlayerPoints() {
@@ -7614,6 +7915,9 @@
         if (effect === 'stun') {
             player.stunTimer = Math.max(player.stunTimer || 0, sec);
             addFloatingText(player.x, player.y - 70, "💫 기절! 3초간 이동·공격 불가 (아이템은 사용 가능)", "#fde047");
+        } else if (effect === 'mslow') {
+            player.mslowTimer = Math.max(player.mslowTimer || 0, sec);
+            addFloatingText(player.x, player.y - 70, "⚡ 감전! 1초간 느려짐", "#67e8f9");
         } else if (effect === 'slow') {
             player.atkSlowTimer = Math.max(player.atkSlowTimer || 0, sec);
             addFloatingText(player.x, player.y - 70, "🐢 공격 속도 0.8배! (3초)", "#c4b5fd");
@@ -7848,6 +8152,245 @@
             }
         }
         ctx.restore();
+    }
+
+
+    // =====================================================================
+    // v9: 심해 신전 — 크라켄(꼬마 오징어로 숨어 있다가 한 방 맞으면 거대해짐), 바닥 촉수, 먹물 대포, 소용돌이,
+    //     붉은 새끼 오징어, 번개 해파리 감전, 가시 복어, 갑옷 게, 상어, 거품 기둥
+    // =====================================================================
+    var SEA_X0 = 15900;
+    var seaTentacles = [];
+    var SEA_BUBBLE_PILLARS = [[16250, 700], [16900, 2350], [17400, 1100], [16600, 1550]];
+    function seaScaleOf(m) {
+        if (m.type !== 'boss_kraken') return m.seaScale || 1;
+        if (m.dormant) return 0.9;
+        const g = m.emergeTimer || 0;
+        return g > 0 ? 0.9 + (3.6 - 0.9) * (1 - g / 90) : 3.6;
+    }
+    function mpKrakenAwake(m) {
+        m.dormant = false;
+        m.emergeTimer = 90;
+        m.name = '★★★★★★★ 심해의 왕 크라켄';
+        m.level = 130;
+        m.radius = 150;
+        m.hp = m.maxHp;
+        m.lastNearAt = Date.now();
+        mpAnnounce("🦑 꼬마 오징어가 거대해지며 심해의 왕 크라켄이 되었습니다!!", "#c084fc");
+        screenShake = 20;
+        playSound('thunder');
+    }
+    function mpKrakenSleep(m) {
+        m.dormant = true; m.enraged = false; m.emergeTimer = 0;
+        m.name = '🦑 수상한 꼬마 오징어'; m.level = 1; m.radius = 24;
+        m.x = m.homeX; m.y = m.homeY;
+    }
+    function mpSeaTentacle(x, y, delay, r, dmg, red) {
+        seaTentacles.push({ x: x, y: y, t: 0, d: delay, r: r, dmg: dmg, red: red, hit: false, host: mpRole !== 'client' });
+        if (mpRole === 'host') mpQueueFx('tn', { x: Math.round(x), y: Math.round(y), d: delay, r: r, e: red ? 1 : 0 });
+    }
+    function mpSeaTick() {
+        for (let i = seaTentacles.length - 1; i >= 0; i--) {
+            const s = seaTentacles[i];
+            s.t++;
+            if (!s.hit && s.t >= s.d) {
+                s.hit = true;
+                for (let k = 0; k < 8; k++) particles.push({ x: s.x + (Math.random() - 0.5) * s.r, y: s.y + (Math.random() - 0.5) * s.r * 0.4, vx: (Math.random() - 0.5) * 4, vy: -Math.random() * 4, size: 5, color: '#bae6fd', life: 20 });
+                if (s.host) mpGolemHitAt(s.x, s.y, s.r, s.dmg, '🦑 바닥에서 솟은 촉수!', null);
+            }
+            if (s.t >= s.d + 34) seaTentacles.splice(i, 1);
+        }
+        // 소용돌이: 짧고 약하게 끌어당김
+        if (player.pullTimer > 0) {
+            player.pullTimer--;
+            if (player.shieldBuffTimer <= 0 && player.x > SEA_X0) {
+                const a = Math.atan2(player.pullY - player.y, player.pullX - player.x);
+                const d = Math.hypot(player.pullY - player.y, player.pullX - player.x);
+                if (d > 90) { player.x += Math.cos(a) * 2.2; player.y += Math.sin(a) * 2.2; }
+            }
+        }
+        if (player.mslowTimer > 0) player.mslowTimer = Math.max(0, player.mslowTimer - 1 / 60);
+        // 거품 기둥: 안에 있으면 체력·마나가 조금씩 참 (1초에 최대치의 2%)
+        if (player.x > SEA_X0 && player.hp > 0) {
+            for (const b of SEA_BUBBLE_PILLARS) {
+                if (Math.hypot(player.x - b[0], (player.y - b[1]) * 1.4) < 60) {
+                    player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.02 / 60);
+                    player.mp = Math.min(player.maxMp, player.mp + player.maxMp * 0.02 / 60);
+                    if (Math.random() < 0.02) addFloatingText(player.x, player.y - 40, '🫧 +', '#7dd3fc');
+                }
+            }
+        }
+    }
+    function mpDrawSeaFx() {
+        for (const s of seaTentacles) {
+            ctx.save(); ctx.translate(s.x, s.y);
+            if (s.t < s.d) {
+                const p = s.t / s.d;
+                ctx.fillStyle = `rgba(239, 68, 68, ${0.12 + p * 0.22})`; ctx.strokeStyle = `rgba(248, 113, 113, ${0.5 + p * 0.4})`; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.ellipse(0, 0, s.r, s.r * 0.42, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(0, 0, s.r * p, s.r * 0.42 * p, 0, 0, Math.PI * 2); ctx.stroke();
+            } else {
+                drawSeaTentacle(ctx, 0.15 + ((s.t - s.d) / 34) * 0.85, s.red);
+            }
+            ctx.restore();
+        }
+    }
+    function mpDrawSeaGround() {
+        const view = canvas.width / cameraZoom + 300;
+        ctx.save();
+        // 위에서 비치는 빛줄기
+        for (const r of seaRays) {
+            if (Math.abs(r.x - player.x) > view) continue;
+            ctx.fillStyle = 'rgba(125, 211, 252, 0.06)';
+            ctx.beginPath(); ctx.moveTo(r.x - 40, 0); ctx.lineTo(r.x + 40, 0); ctx.lineTo(r.x + 260, WORLD_HEIGHT); ctx.lineTo(r.x + 120, WORLD_HEIGHT); ctx.closePath(); ctx.fill();
+        }
+        for (const p of seaPillars) {                                   // 가라앉은 신전 기둥
+            if (Math.abs(p.x - player.x) > view) continue;
+            const x = p.x, y = p.y, h = p.h;
+            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, y + 4, 34, 10, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#64748b'; ctx.fillRect(x - 18, y - h, 36, h);
+            ctx.fillStyle = '#94a3b8'; for (let k = -13; k <= 13; k += 9) ctx.fillRect(x + k - 1.5, y - h, 3, h);
+            ctx.fillStyle = '#475569'; ctx.fillRect(x - 25, y - 9, 50, 11);
+            if (p.broken) { ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.moveTo(x - 18, y - h); ctx.lineTo(x - 7, y - h - 14); ctx.lineTo(x + 4, y - h - 5); ctx.lineTo(x + 18, y - h - 16); ctx.lineTo(x + 18, y - h); ctx.closePath(); ctx.fill(); }
+            else { ctx.fillStyle = '#475569'; ctx.fillRect(x - 25, y - h - 11, 50, 11); }
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.5)'; ctx.beginPath(); ctx.ellipse(x - 11, y - h * 0.4, 7, 16, 0.3, 0, Math.PI * 2); ctx.fill();
+        }
+        for (const c of seaCorals) {                                    // 산호
+            if (Math.abs(c.x - player.x) > view) continue;
+            ctx.strokeStyle = c.col; ctx.fillStyle = c.col; ctx.lineWidth = 5; ctx.lineCap = 'round';
+            for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + (k - 2) * 0.35; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.quadraticCurveTo(c.x + Math.cos(a) * 14, c.y + Math.sin(a) * 14 - 6, c.x + Math.cos(a) * 26, c.y + Math.sin(a) * 26); ctx.stroke(); ctx.beginPath(); ctx.arc(c.x + Math.cos(a) * 26, c.y + Math.sin(a) * 26, 3.5, 0, Math.PI * 2); ctx.fill(); }
+        }
+        const tt = performance.now();
+        for (const w of seaWeeds) {                                     // 해초 (살랑살랑)
+            if (Math.abs(w.x - player.x) > view) continue;
+            const sw = Math.sin(tt * 0.0015 + w.x) * 8;
+            ctx.strokeStyle = w.c; ctx.lineWidth = 4; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.bezierCurveTo(w.x + 10 + sw * 0.3, w.y - w.h * 0.3, w.x - 10 + sw * 0.7, w.y - w.h * 0.6, w.x + 4 + sw, w.y - w.h); ctx.stroke();
+        }
+        for (const b of SEA_BUBBLE_PILLARS) {                           // 거품 기둥
+            if (Math.abs(b[0] - player.x) > view) continue;
+            const g = ctx.createRadialGradient(b[0], b[1], 5, b[0], b[1], 62);
+            g.addColorStop(0, 'rgba(186, 230, 253, 0.35)'); g.addColorStop(1, 'rgba(186, 230, 253, 0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(b[0], b[1], 62, 44, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(224, 242, 254, 0.75)'; ctx.lineWidth = 1.4;
+            for (let k = 0; k < 10; k++) { const ph = (tt * 0.05 + k * 37) % 220; const x = b[0] + Math.sin(k * 2.3 + tt * 0.002) * 22; ctx.beginPath(); ctx.arc(x, b[1] - ph, 2 + (k % 3), 0, Math.PI * 2); ctx.stroke(); }
+        }
+        ctx.restore();
+    }
+    function mpKrakenAI(m, P, ang, dist) {
+        m.noMelee = false;
+        if (m.dormant) {                       // 숨어 있는 꼬마 오징어: 천천히 떠다님
+            m.noMelee = true;
+            m.wanderA = (m.wanderA || 0) + 0.01;
+            m.x = m.homeX + Math.cos(m.wanderA) * 60; m.y = m.homeY + Math.sin(m.wanderA * 1.3) * 30;
+            m.walkFrame += 0.05;
+            return;
+        }
+        if (m.emergeTimer > 0) { m.emergeTimer--; m.noMelee = true; if (m.emergeTimer % 10 === 0) screenShake = Math.max(screenShake, 6); return; }
+        const E = !!m.enraged;
+        m.meleeCd = E ? 24 : 38;
+        if (m.slamAnim > 0) m.slamAnim--;
+        if (dist > m.radius * 0.7) { m.x += Math.cos(ang) * m.speed; m.y += Math.sin(ang) * m.speed; m.walkFrame += 0.12; }
+        // 바닥에서 솟는 촉수 (빨간 원으로 먼저 경고)
+        m.tentTimer = (m.tentTimer == null ? 100 : m.tentTimer) - 1;
+        if (m.tentTimer <= 0 && dist < 860) {
+            m.tentTimer = E ? 100 : 150;
+            m.slamAnim = 30;
+            const n = E ? 5 : 3;
+            for (let k = 0; k < n; k++) {
+                const tx = P.x + (k ? (Math.random() - 0.5) * 340 : 0), ty = P.y + (k ? (Math.random() - 0.5) * 220 : 0);
+                mpSeaTentacle(tx, ty, 50 + k * 5, 60, Math.floor(m.atk * 0.8), E);
+            }
+            if (Math.random() < 0.5) mpCrocSay(m, 190, "🦑 바닥에서 촉수가 솟아오릅니다!!", "#e9d5ff");
+        }
+        // 먹물 대포 (세 갈래, 화면은 안 가림)
+        m.inkTimer = (m.inkTimer == null ? 80 : m.inkTimer) - 1;
+        if (m.inkTimer <= 0 && dist < 820) {
+            m.inkTimer = E ? 70 : 120;
+            for (const off of [-0.22, 0, 0.22]) {
+                const a = ang + off;
+                mpSpawnEnemyProj({ x: m.x + Math.cos(a) * 60, y: m.y - 30 + Math.sin(a) * 40, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, radius: 13, damage: Math.floor(m.atk * 0.6), color: '#312e81', life: 95 });
+            }
+            if (Math.random() < 0.35) mpCrocSay(m, 190, "🦑 먹물 대포!!", "#a5b4fc");
+        }
+        // 소용돌이: 가끔 1초 동안 약하게 끌어당김
+        m.pullTimerB = (m.pullTimerB == null ? 420 : m.pullTimerB) - 1;
+        if (m.pullTimerB <= 0 && dist < 620) {
+            m.pullTimerB = E ? 420 : 600;
+            mpShockRing(m.x, m.y, 520, '#38bdf8');
+            for (const T of mpAllTargets()) {
+                if (T.x <= SEA_X0 || Math.hypot(T.x - m.x, T.y - m.y) > 650) continue;
+                if (T.isProxy) mpQueueFx('pl', { u: T.uid, x: Math.round(m.x), y: Math.round(m.y), f: 60 });
+                else { player.pullTimer = 60; player.pullX = m.x; player.pullY = m.y; addFloatingText(player.x, player.y - 60, '🌀 소용돌이에 끌려갑니다!', '#7dd3fc'); }
+            }
+            mpCrocSay(m, 190, "🦑 소용돌이!!", "#7dd3fc");
+        }
+        // 분노: 붉은 새끼 오징어 (5마리까지)
+        if (E) {
+            m.babyTimer = (m.babyTimer == null ? 600 : m.babyTimer) - 1;
+            if (m.babyTimer <= 0) {
+                m.babyTimer = 900;
+                const have = monsters.filter(b => b.type === 'sea_squidling' && b.motherNid === m.nid).length;
+                const cnt = Math.max(0, 5 - have);
+                for (let s = 0; s < cnt; s++) {
+                    const sa = Math.random() * Math.PI * 2;
+                    spawnMonster('sea_squidling', m.x + Math.cos(sa) * 170, m.y + Math.sin(sa) * 100);
+                    const b = monsters[monsters.length - 1];
+                    if (b && b.type === 'sea_squidling') { b.motherNid = m.nid; b.homeX = m.x; b.homeY = m.y; }
+                }
+                if (cnt > 0) mpCrocSay(m, 200, `🦑 붉은 새끼 오징어 ${cnt}마리가 태어났습니다!!`, "#f87171");
+            }
+        }
+    }
+    // 붉은 새끼 오징어: 다가와 깨물기, 2초 달라붙어 체력 빨기, 먹물 쏘기
+    function mpSquidlingAI(m, P, ang, dist) {
+        m.noMelee = false;
+        if (m.latchT > 0) {
+            m.latchT--;
+            m.noMelee = true;
+            m.x = P.x + Math.cos(m.latchA || 0) * 22; m.y = P.y - 6 + Math.sin(m.latchA || 0) * 14;
+            m.drainT = (m.drainT || 0) + 1;
+            if (m.drainT >= 30) {
+                m.drainT = 0;
+                if (P.shieldBuffTimer > 0) m.latchT = 0;
+                else {
+                    const d = Math.floor(m.atk * 0.5);
+                    P.hp -= d;
+                    addFloatingText(P.x, P.y - 40, `🦑 새끼 오징어가 빨아먹음! -${d}`, '#f87171');
+                    if (!P.isProxy && P.hp <= 0) { handlePlayerDeath(); m.latchT = 0; }
+                }
+            }
+            if (m.latchT <= 0) m.latchCd = 240;
+            return;
+        }
+        if (m.latchCd > 0) m.latchCd--;
+        if (dist > P.radius + m.radius * 0.6) { m.x += Math.cos(ang) * m.speed; m.y += Math.sin(ang) * m.speed; m.walkFrame += 0.2; }
+        else if (!(m.latchCd > 0) && P.shieldBuffTimer <= 0) { m.latchT = 120; m.latchA = Math.random() * Math.PI * 2; m.drainT = 0; }
+        m.inkT = (m.inkT == null ? 60 + Math.floor(Math.random() * 60) : m.inkT) - 1;
+        if (m.inkT <= 0 && dist < 500 && dist > 80) {
+            m.inkT = 100;
+            mpSpawnEnemyProj({ x: m.x, y: m.y - 10, vx: Math.cos(ang) * 7.5, vy: Math.sin(ang) * 7.5, radius: 9, damage: Math.floor(m.atk * 0.6), color: '#312e81', life: 80 });
+        }
+    }
+    // 가시 복어 · 갑옷 게 · 번개 해파리의 특별 행동 (일반 이동/공격에 더해서)
+    function mpSeaExtra(m, P, ang, dist) {
+        if (m.type === 'sea_puffer') {
+            if (m.stabAnim > 0) m.stabAnim--;
+            m.puffT = (m.puffT == null ? 60 + Math.floor(Math.random() * 40) : m.puffT) - 1;
+            if (m.puffT <= 0 && dist < 460) {
+                m.puffT = 80;
+                m.stabAnim = 22;
+                mpSpikeRing(m.x, m.y - 6, 10, Math.random() * Math.PI, 7, 8, Math.floor(m.atk * 0.8), '#f59e0b', 70);
+            }
+        } else if (m.type === 'sea_crab') {
+            m.sideT = (m.sideT == null ? 120 : m.sideT) - 1;
+            if (m.sideT <= 0) { m.sideT = 140 + Math.floor(Math.random() * 60); m.sideDash = 16; m.sideDir = Math.random() < 0.5 ? 1 : -1; }
+            if (m.sideDash > 0) {
+                m.sideDash--;
+                const a = ang + m.sideDir * Math.PI / 2;
+                m.x += Math.cos(a) * 7; m.y += Math.sin(a) * 7;
+            }
+        }
     }
 
     // ---- 친구 마법 보이기 ----
