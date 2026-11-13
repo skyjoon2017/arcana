@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v10">
+    <meta name="game-version" content="v10.1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -644,7 +644,7 @@
 
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
-    <div id="crit-flash" style="position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;z-index:15;background:radial-gradient(circle,rgba(253,224,71,.55),rgba(245,158,11,.2) 50%,transparent 80%)"></div>
+    <div id="crit-flash" style="position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;z-index:15;background:radial-gradient(circle,rgba(255,255,255,.75),rgba(253,224,71,.6) 30%,rgba(245,158,11,.3) 60%,rgba(120,53,15,.15) 85%);box-shadow:inset 0 0 120px 40px rgba(250,204,21,.8)"></div>
 
     <!-- Compact Top HUD Bar (Responsive & Horizontally Scrollable on Mobile) -->
     <div id="top-hud" class="fixed top-1.5 left-1.5 right-1.5 flex items-start justify-between gap-1.5 z-20 pointer-events-none">
@@ -1534,7 +1534,7 @@
             <div id="gacha-msg" style="text-align:center;font-size:12px;font-weight:900;min-height:18px;margin-top:6px"></div>
             <div style="font-size:14px;font-weight:900;color:#c7d2fe;margin:8px 0 6px">🎒 무기 가방 (눌러서 장착 · 장착한 무기를 다시 누르면 해제)</div>
             <div id="gacha-bag" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-            <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-top:10px">확률: 💣 꽝 40% · 일반 33% (새총 15 · 투척 단검 10.8 · 나무 활 7.2) · 고급 15% (쇠 부메랑 8.4 · 연발 석궁 6.6) · 희귀 7.8% (서리 창 4.8 · 화염 도끼 3) · 영웅 3.6% (번개 쌍검 2.4 · 흡혈 낫 1.2) · 전설 0.6% (아르카나 성검) · 100회 안에 전설이 없으면 100번째 전설 확정</div>
+            <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-top:10px">확률: 💣 꽝 40% · 일반 33% (새총 15 · 쇠 단검 10.8 · 나무 활 7.2) · 고급 15% (연발 석궁 8.4 · 화염 도끼 6.6) · 희귀 7.8% (쇠 부메랑 4.8 · 서리 창 3) · 영웅 3.6% (번개 활 2.4 · 흡혈 낫 1.2) · 전설 0.6% (아르카나 성검) · 100회 안에 전설이 없으면 100번째 전설 확정</div>
             <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-top:4px">🎁 친구에게 무기 양도는 [멀티플레이] 창의 아이템 양도 목록에서 할 수 있습니다 · 뽑은 무기는 게임을 저장해야 남습니다</div>
         </div>
         <div id="gacha-flash" style="position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;background:radial-gradient(circle,rgba(253,224,71,.85),rgba(245,158,11,.35) 45%,transparent 75%)"></div>
@@ -3634,15 +3634,15 @@
     };
     const WEAPONS = [
         { id: 'slingshot',      name: '새총',           grade: 'common',    kind: 'ranged', prob: 25, bonus: 0.05, desc: '원거리 · 돌멩이를 쏩니다' },
-        { id: 'dagger',         name: '투척 단검',      grade: 'common',    kind: 'ranged', prob: 18, bonus: 0.06, desc: '원거리 · 약한 흡혈 3%' },
+        { id: 'dagger',         name: '쇠 단검',        grade: 'common',    kind: 'melee',  prob: 18, bonus: 0.06, desc: '근접 · 가까이 100% · 검기 30% · 흡혈 3%' },
         { id: 'bow',            name: '나무 활',        grade: 'common',    kind: 'ranged', prob: 12, bonus: 0.08, desc: '원거리 · 사거리가 가장 깁니다' },
-        { id: 'boomerang',      name: '쇠 부메랑',      grade: 'uncommon',  kind: 'ranged', prob: 14, bonus: 0.10, desc: '원거리 · 뚫고 갔다 돌아옵니다' },
-        { id: 'crossbow',       name: '연발 석궁',      grade: 'uncommon',  kind: 'ranged', prob: 11, bonus: 0.10, desc: '원거리 · 연사가 조금 빠릅니다' },
-        { id: 'frost_spear',    name: '서리 창',        grade: 'rare',      kind: 'melee',  prob: 8,  bonus: 0.15, desc: '근접 찌르기 · 보스 포함 1초 빙결' },
-        { id: 'fire_axe',       name: '화염 도끼',      grade: 'rare',      kind: 'melee',  prob: 5,  bonus: 0.15, desc: '근접 · 주변에도 피해(스플래시) + 불' },
-        { id: 'thunder_blades', name: '번개 쌍검',      grade: 'epic',      kind: 'melee',  prob: 4,  bonus: 0.20, desc: '근접 · 2연속 베기 + 번개 스플래시' },
-        { id: 'blood_scythe',   name: '흡혈 낫',        grade: 'epic',      kind: 'melee',  prob: 2,  bonus: 0.20, desc: '근접 · 넓게 휘두르기, 흡혈 12%' },
-        { id: 'arcana_sword',   name: '아르카나 성검',  grade: 'legendary', kind: 'melee',  prob: 1,  bonus: 0.30, desc: '근접 · 가장 센 베기, 가끔 크리티컬 200%' }
+        { id: 'crossbow',       name: '연발 석궁',      grade: 'uncommon',  kind: 'ranged', prob: 14, bonus: 0.10, desc: '원거리 · 연사가 조금 빠릅니다' },
+        { id: 'fire_axe',       name: '화염 도끼',      grade: 'uncommon',  kind: 'melee',  prob: 11, bonus: 0.10, desc: '근접 · 주변 50% + 불 · 검기 50%' },
+        { id: 'boomerang',      name: '쇠 부메랑',      grade: 'rare',      kind: 'ranged', prob: 8,  bonus: 0.15, desc: '원거리 · 뚫고 갔다 돌아옵니다' },
+        { id: 'frost_spear',    name: '서리 창',        grade: 'rare',      kind: 'melee',  prob: 5,  bonus: 0.15, desc: '근접 찌르기 · 보스 포함 1초 빙결 · 검기 50%' },
+        { id: 'thunder_blades', name: '번개 활',        grade: 'epic',      kind: 'ranged', prob: 4,  bonus: 0.20, desc: '원거리 · 맞으면 번개가 주변 2마리에게 튕김' },
+        { id: 'blood_scythe',   name: '흡혈 낫',        grade: 'epic',      kind: 'melee',  prob: 2,  bonus: 0.20, desc: '근접 · 넓게 휘두르기 · 흡혈 12% · 검기 50%' },
+        { id: 'arcana_sword',   name: '아르카나 성검',  grade: 'legendary', kind: 'melee',  prob: 1,  bonus: 0.30, desc: '근접 120% · 뚫는 검기 80% · 크리티컬' }
     ];
 
     // 아이콘: 가운데 기준 약 -24~24 크기, 대각선(왼쪽 아래 → 오른쪽 위)으로 놓인 모습
@@ -3712,21 +3712,18 @@
             c.restore();
             c.fillStyle = 'rgba(251,146,60,0.85)';
             for (let i = 0; i < 4; i++) { const fy = -20 - ((t * 0.05 + i * 9) % 14); c.beginPath(); c.arc(10 + i * 4 - 6, fy, 2.6 - i * 0.4, 0, Math.PI * 2); c.fill(); }
-        } else if (id === 'thunder_blades') {
-            for (const s of [-1, 1]) {
-                c.save(); c.rotate(-Math.PI / 2 + s * 0.62); c.translate(-4, 0);
-                c.save(); c.shadowColor = '#facc15'; c.shadowBlur = 12;
-                c.fillStyle = '#fef9c3'; c.strokeStyle = '#ca8a04'; c.lineWidth = 1.3;
-                c.beginPath(); c.moveTo(-2, -3.5); c.lineTo(26, -1); c.lineTo(30, 0); c.lineTo(26, 1); c.lineTo(-2, 3.5); c.closePath(); c.fill(); c.stroke();
-                c.restore();
-                c.strokeStyle = '#eab308'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(2, 0); c.lineTo(24, 0); c.stroke();
-                c.fillStyle = '#1e293b'; c.beginPath(); c.roundRect(-6, -7, 4, 14, 1.5); c.fill();
-                c.fillStyle = '#1d4ed8'; c.beginPath(); c.roundRect(-17, -2.4, 11, 4.8, 1.5); c.fill();
-                c.fillStyle = '#facc15'; c.beginPath(); c.arc(-18, 0, 2.6, 0, Math.PI * 2); c.fill();
-                c.restore();
-            }
-            c.save(); c.shadowColor = '#fde047'; c.shadowBlur = 8; c.strokeStyle = '#fde047'; c.lineWidth = 1.8;
-            for (const k of [-1, 1]) { const o = Math.sin(t * 0.02 + k) * 2.5; c.beginPath(); c.moveTo(k * 20, -26); c.lineTo(k * 15 + o, -18); c.lineTo(k * 20, -14); c.lineTo(k * 14 + o, -5); c.stroke(); }
+        } else if (id === 'thunder_blades') {          // 번개 활
+            c.save(); c.rotate(-Math.PI / 4);
+            c.shadowColor = '#facc15'; c.shadowBlur = 10;
+            c.strokeStyle = '#1e3a8a'; c.lineWidth = 5; c.beginPath(); c.moveTo(-4, -27); c.quadraticCurveTo(16, 0, -4, 27); c.stroke();
+            c.shadowBlur = 0;
+            c.strokeStyle = '#facc15'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(-4, -27); c.quadraticCurveTo(16, 0, -4, 27); c.stroke();
+            c.fillStyle = '#facc15'; c.beginPath(); c.arc(-4, -27, 2.6, 0, Math.PI * 2); c.arc(-4, 27, 2.6, 0, Math.PI * 2); c.fill();
+            c.strokeStyle = '#fef9c3'; c.lineWidth = 1; c.beginPath(); c.moveTo(-4, -27); c.lineTo(-10, 0); c.lineTo(-4, 27); c.stroke();
+            c.shadowColor = '#fde047'; c.shadowBlur = 12; c.strokeStyle = '#fde047'; c.lineWidth = 2.6;
+            const o = Math.sin(t * 0.03) * 1.5;
+            c.beginPath(); c.moveTo(-12, 0); c.lineTo(0, -3 + o); c.lineTo(7, 2); c.lineTo(20, -1 - o); c.stroke();
+            c.fillStyle = '#fef9c3'; c.beginPath(); c.moveTo(19, -5); c.lineTo(28, -1); c.lineTo(19, 3); c.closePath(); c.fill();
             c.restore();
         } else if (id === 'blood_scythe') {
             c.rotate(-0.5);
@@ -3776,13 +3773,12 @@
             c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 4; c.beginPath(); c.moveTo(-18, 0); c.lineTo(-4, 0); c.stroke();
             c.fillStyle = '#6b7280'; c.strokeStyle = '#1f2937'; c.lineWidth = 1.5;
             c.beginPath(); c.moveTo(-6, -3); c.lineTo(-1, -6); c.lineTo(5, -4); c.lineTo(6, 2); c.lineTo(1, 6); c.lineTo(-5, 4); c.closePath(); c.fill(); c.stroke();
-        } else if (id === 'dagger') {
-            c.strokeStyle = 'rgba(226,232,240,0.45)'; c.lineWidth = 3; c.beginPath(); c.moveTo(-30, 0); c.lineTo(-10, 0); c.stroke();
-            c.scale(0.75, 0.75); c.translate(-2, 0);
-            c.fillStyle = '#e5e7eb'; c.strokeStyle = '#6b7280'; c.lineWidth = 1.2;
-            c.beginPath(); c.moveTo(-2, 4); c.lineTo(22, 0); c.lineTo(-2, -4); c.closePath(); c.fill(); c.stroke();
-            c.fillStyle = '#a16207'; c.fillRect(-5, -8, 4, 16);
-            c.fillStyle = '#451a03'; c.beginPath(); c.roundRect(-18, -3, 13, 6, 2); c.fill();
+        } else if (id === 'thunder_blades') {          // 번개 화살
+            c.save(); c.shadowColor = '#facc15'; c.shadowBlur = 14; c.strokeStyle = '#fde047'; c.lineWidth = 3;
+            const o = Math.sin(t * 0.05 + (age || 0)) * 3;
+            c.beginPath(); c.moveTo(-34, 0); c.lineTo(-22, -5 + o); c.lineTo(-10, 3); c.lineTo(2, -3 - o); c.lineTo(10, 0); c.stroke();
+            c.fillStyle = '#fef9c3'; c.beginPath(); c.moveTo(8, -6); c.lineTo(19, 0); c.lineTo(8, 6); c.closePath(); c.fill();
+            c.restore();
         } else if (id === 'bow') {
             c.strokeStyle = '#a16207'; c.lineWidth = 2.2; c.beginPath(); c.moveTo(-22, 0); c.lineTo(10, 0); c.stroke();
             c.fillStyle = '#9ca3af'; c.beginPath(); c.moveTo(9, -4); c.lineTo(17, 0); c.lineTo(9, 4); c.closePath(); c.fill();
@@ -3808,14 +3804,10 @@
             c.beginPath(); c.moveTo(12, -6); c.lineTo(32, 0); c.lineTo(12, 6); c.lineTo(15, 0); c.closePath(); c.fill(); c.stroke();
             c.restore();
             c.fillStyle = 'rgba(224,242,254,0.9)'; for (let i = 0; i < 5; i++) { c.beginPath(); c.arc(-20 - i * 9, Math.sin(t * 0.02 + i) * 6, 1.6, 0, Math.PI * 2); c.fill(); }
-        } else if (id === 'fire_axe') {
-            for (let i = 1; i <= 4; i++) { c.fillStyle = `rgba(249,115,22,${0.35 - i * 0.07})`; c.beginPath(); c.arc(-i * 9, 0, 13 - i * 1.5, 0, Math.PI * 2); c.fill(); }
-            c.rotate((age || 0) * 0.5);
-            c.scale(0.75, 0.75); c.translate(0, 4);
-            drawWeaponIcon(c, 'fire_axe');
-        } else if (id === 'thunder_blades' || id === 'blood_scythe' || id === 'arcana_sword') {
+        } else if (id === 'dagger' || id === 'fire_axe' || id === 'blood_scythe' || id === 'arcana_sword') {
             // 초승달 모양 검기
-            const cfg = id === 'thunder_blades' ? { r: 24, w: 9, c1: '#fef9c3', c2: '#facc15', glow: '#facc15' }
+            const cfg = id === 'dagger' ? { r: 18, w: 7, c1: '#ffffff', c2: '#94a3b8', glow: '#e2e8f0' }
+                      : id === 'fire_axe' ? { r: 28, w: 11, c1: '#fef08a', c2: '#f97316', glow: '#f97316' }
                       : id === 'blood_scythe'   ? { r: 34, w: 13, c1: '#fecaca', c2: '#dc2626', glow: '#dc2626' }
                       :                            { r: 52, w: 18, c1: '#ffffff', c2: '#fbbf24', glow: '#fde68a' };
             c.save(); c.shadowColor = cfg.glow; c.shadowBlur = 16;
@@ -3823,9 +3815,9 @@
             c.fillStyle = g;
             c.beginPath(); c.arc(-cfg.r * 0.55, 0, cfg.r, -1.15, 1.15); c.arc(-cfg.r * 0.55 - cfg.w, 0, cfg.r - cfg.w * 0.3, 1.0, -1.0, true); c.closePath(); c.fill();
             c.restore();
-            if (id === 'thunder_blades') {
-                c.strokeStyle = '#fde047'; c.lineWidth = 1.6;
-                for (let k = -1; k <= 1; k += 2) { const o = Math.sin(t * 0.04 + k) * 4; c.beginPath(); c.moveTo(-14, k * 14); c.lineTo(-4 + o, k * 10); c.lineTo(-10, k * 6); c.lineTo(2, k * 2 + o); c.stroke(); }
+            if (id === 'dagger') {
+            } else if (id === 'fire_axe') {
+                c.fillStyle = 'rgba(251,146,60,0.85)'; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(-24 - i * 7, (i - 1.5) * 8 + Math.sin(t * 0.03 + i) * 2, 3 - i * 0.4, 0, Math.PI * 2); c.fill(); }
             } else if (id === 'blood_scythe') {
                 c.fillStyle = 'rgba(220,38,38,0.8)'; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(-30 - i * 7, (i - 1.5) * 9, 2, 0, Math.PI * 2); c.fill(); }
             } else {
@@ -3974,7 +3966,7 @@
                     ${gachaIconCanvas(w.id, 40)}
                     <span style="display:flex;flex-direction:column;line-height:1.25">
                         <span style="font-size:12px;font-weight:900;color:#fff">${w.name}${plus ? ' +' + plus : ''}</span>
-                        <span style="font-size:10px;font-weight:800;color:${G.color}">${G.label} · 공격력 +${Math.round(w.bonus * 100) + plus * 2}%</span>
+                        <span style="font-size:10px;font-weight:800;color:${G.color}">${G.label} · ${w.kind === 'melee' ? '⚔️근접' : '🏹원거리'} · +${Math.round(w.bonus * 100) + plus * 2}%</span>
                         <span style="font-size:10px;font-weight:900;color:${on ? '#fde047' : '#94a3b8'}">${on ? '✔ 장착 중 (누르면 해제)' : '누르면 장착'}</span>
                     </span></button>`;
             }).join('') : `<div style="color:#64748b;font-size:12px;font-weight:700">아직 무기가 없습니다. 무기를 끼지 않으면 지금처럼 마법으로 공격합니다.</div>`;
@@ -3991,16 +3983,12 @@
                 damageMonster(m, idx, Math.max(1, Math.round(dmg * 0.05)), 0);
             }, k * 500);
         }
-        if (proj.wChain) {
-            let best = null, bd = 230;
-            for (const o of monsters) {
-                if (o === m || o.hp <= 0) continue;
-                const d = Math.hypot(o.x - m.x, o.y - m.y);
-                if (d < bd) { bd = d; best = o; }
-            }
-            if (best) {
+        if (proj.wChain) {                         // 번개 활: 맞은 몬스터 주변 2마리에게 번개 40%
+            const near = monsters.filter(o => o !== m && o.hp > 0 && Math.hypot(o.x - m.x, o.y - m.y) < 230)
+                .sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y)).slice(0, 2);
+            for (const best of near) {
                 lightningBolts.push({ segments: [{ x1: m.x, y1: m.y - 10, x2: (m.x + best.x) / 2 + (Math.random() - 0.5) * 30, y2: (m.y + best.y) / 2 - 10 }, { x1: (m.x + best.x) / 2, y1: (m.y + best.y) / 2 - 10, x2: best.x, y2: best.y - 10 }], targetX: best.x, targetY: best.y, life: 10, maxLife: 10, color: '#fde047' });
-                damageMonster(best, monsters.indexOf(best), Math.max(1, Math.round(dmg * 0.5)), 0);
+                const bi = monsters.indexOf(best); if (bi >= 0) damageMonster(best, bi, Math.max(1, Math.round(dmg * 0.4)), 0);
             }
         }
     }
@@ -4952,16 +4940,23 @@
         updateHUD();
     }
 
-    function getEffectiveAtk() {
+    function getEffectiveAtk(noWeapon) {
         let base = player.atk + (playerHome.decors.statue ? 12 : 0) + Math.floor(player.level * 3.5);
         if (player.superBuffTimer > 0) base = Math.floor(base * 2.0);
-        base = Math.floor(base * weaponAtkMul());   // 장착한 무기의 공격력 보너스
+        if (!noWeapon) base = Math.floor(base * weaponAtkMul());   // 장착한 무기의 공격력 보너스
         return Math.max(8, Math.floor(base * 0.42));
     }
 
     function castDirectionalBolt() {
         if (player.stunTimer > 0) return;
         if (player.shootCooldown > 0) return;
+        {   // 근접 무기: 검기가 닿는 거리 안에 적이 없으면 휘두르지 않음 (허공 베기 · 마나 낭비 방지)
+            const w0 = equippedWeaponId(), wi0 = w0 ? weaponInfo(w0) : null;
+            if (wi0 && wi0.kind === 'melee') {
+                const reach = meleeReach(w0);
+                if (!monsters.some(m => m.hp > 0 && Math.hypot(m.x - player.x, m.y - player.y) - (m.radius || 0) < reach)) return;
+            }
+        }
         const lv = player.level;
         const manaCost = player.superBuffTimer > 0 ? 0 : Math.max(1, Math.round(6 + (lv - 1) * 0.8));
         if (player.mp < manaCost) {
@@ -4977,7 +4972,8 @@
         player.attackAnim = 1.0;
 
         let nearestMonster = null;
-        let minDist = equippedWeaponId() === 'bow' ? 450 : 380;   // 자동 조준 범위 (몬스터가 알아차리는 거리와 비슷하게)
+        const wAim = equippedWeaponId(), wAimInfo = wAim ? weaponInfo(wAim) : null;
+        let minDist = wAim === 'bow' ? 450 : (wAimInfo && wAimInfo.kind === 'melee' ? meleeReach(wAim) + 120 : 380);   // 자동 조준 범위
         for (const m of monsters) {
             const d = Math.hypot(m.x - player.x, m.y - player.y);
             if (d < minDist) {
@@ -4995,7 +4991,7 @@
         playSound('shoot');
 
         const evoTier = Math.floor(lv / 5);
-        const atkDmg = Math.max(10, Math.floor((getEffectiveAtk() * (1.45 + evoTier * 0.14) + lv * 4) * 0.7));
+        const atkDmg = Math.max(10, Math.floor((getEffectiveAtk(true) * (1.45 + evoTier * 0.14) + lv * 4) * 0.7 * weaponAtkMul()));   // 무기 보너스는 기본 공격 전체에
         const isSuper = player.superBuffTimer > 0;
 
         let offsets = [0];
@@ -5016,17 +5012,17 @@
         const wid = equippedWeaponId();
         const winfo = wid ? weaponInfo(wid) : null;
         if (winfo && winfo.kind === 'melee') {
-            // 근접 무기: 앞쪽을 크게 베어 범위 안의 몬스터 모두에게 피해 (원거리 여러 발 분량을 한 번에)
-            performMeleeSlash(wid, angle, atkDmg * offsets.length, false);
+            // 근접 무기: 기본 마법 한 번(여러 발 합친 피해)을 기준으로 무기별 비율 적용
+            performMeleeSlash(wid, angle, atkDmg * offsets.length);
             return;
         }
         let range = 380;
         const WX = {};
         if (wid) {
             style = 'w_' + wid; color = WEAPON_GRADES[winfo.grade].color;
-            const R = { slingshot: 9, dagger: 9, bow: 9, boomerang: 14, crossbow: 9 };
+            const R = { slingshot: 9, bow: 9, boomerang: 14, crossbow: 9, thunder_blades: 10 };
             radius = R[wid] || radius;
-            if (wid === 'dagger') { speed *= 1.3; WX.lifeStealRatio = 0.03; }
+            if (wid === 'thunder_blades') { speed *= 1.15; WX.wChain = true; }
             if (wid === 'bow') { speed *= 1.1; range = 450; }
             if (wid === 'crossbow') { speed *= 1.2; player.shootCooldown = Math.max(8, Math.round(player.shootCooldown * 0.9)); }
             if (wid === 'boomerang') { WX.boomerang = true; WX.pierce = true; }
@@ -6708,12 +6704,9 @@
                             addFloatingText(player.x, player.y - 26, `+${healHp} HP`, '#34d399');
                         }
                     }
-                    let wFrz = 0;
-                    if (proj.wFreeze && !m.isSupremeBoss && Math.random() < proj.wFreeze) {
-                        wFrz = 60;
-                        if (mpRole !== 'client') { m.frozenTimer = 60; playSound('freeze'); }
-                    }
+                    const wFrz = proj.wFrost ? weaponFrost(m) : 0;
                     damageMonster(m, j, proj.damage, (proj.freezeDuration || 0) || wFrz);
+                    if (proj.wCrit && !proj.critShown) { proj.critShown = true; showCritical(m.x, m.y, proj.damage); }
                     if (proj.isPlayerShot && player.vampTimer > 0) playerVampHeal(proj.damage, 0);
                     if (proj.wBurn || proj.wChain) weaponOnHit(proj, m, proj.damage);
                     if (proj.pierce) { (proj.hitSet = proj.hitSet || new Set()).add(m); continue; }
@@ -6794,7 +6787,7 @@
         for (let i = lightningBolts.length - 1; i >= 0; i--) { lightningBolts[i].life--; if (lightningBolts[i].life <= 0) lightningBolts.splice(i, 1); }
         for (let i = petElectricArcs.length - 1; i >= 0; i--) { petElectricArcs[i].life--; if (petElectricArcs[i].life <= 0) petElectricArcs.splice(i, 1); }
         for (let i = particles.length - 1; i >= 0; i--) { const pt = particles[i]; pt.x += pt.vx; pt.y += pt.vy; pt.life--; if (pt.life <= 0) particles.splice(i, 1); }
-        for (let i = floatingTexts.length - 1; i >= 0; i--) { const ft = floatingTexts[i]; ft.y -= 0.85; ft.life--; if (ft.life <= 0) floatingTexts.splice(i, 1); }
+        for (let i = floatingTexts.length - 1; i >= 0; i--) { const ft = floatingTexts[i]; ft.y -= ft.crit ? 0.3 : 0.85; ft.life--; if (ft.life <= 0) floatingTexts.splice(i, 1); }
 
         const viewW = canvas.width / cameraZoom;
         const viewH = canvas.height / cameraZoom;
@@ -7121,6 +7114,7 @@
             ctx.fillStyle = pt.color; ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size * (pt.life / 20), 0, Math.PI * 2); ctx.fill();
         }
         for (const ft of floatingTexts) {
+            if (ft.crit) { drawCritText(ctx, ft); continue; }
             ctx.font = `900 ${ft.size || 13}px "Noto Sans KR"`; ctx.textAlign = 'center';
             ctx.strokeStyle = '#0f172a'; ctx.lineWidth = ft.size ? 6 : 3; ctx.strokeText(ft.text, ft.x, ft.y);
             ctx.fillStyle = ft.color; ctx.fillText(ft.text, ft.x, ft.y);
@@ -8473,16 +8467,21 @@
     }
 
 
+
     // =====================================================================
-    // v10: 근접 무기 베기 · 성검 크리티컬 · 흡혈 (무기·흡혈 물약)
+    // v10.1: 근접 무기 (가까이 베기 + 검기) · 성검 크리티컬 · 흡혈
+    //   near: 가장 가까운 한 마리 피해 비율 (범위 안 나머지는 그 절반)
+    //   wave: 검기 피해 비율 · waveR: 검기 거리
+    //   (100% = 기본 마법을 한 번 쐈을 때 여러 발 합친 피해)
     // =====================================================================
     const WEAPON_MELEE = {
-        frost_spear:    { r: 150, arc: 0.32, color: '#7dd3fc' },   // 길고 좁은 찌르기
-        fire_axe:       { r: 120, arc: 1.0,  color: '#f97316' },
-        thunder_blades: { r: 115, arc: 1.1,  color: '#facc15' },
-        blood_scythe:   { r: 140, arc: 1.5,  color: '#dc2626' },   // 넓게 휘두르기
-        arcana_sword:   { r: 165, arc: 1.3,  color: '#fde68a' }    // 가장 넓고 긴 베기
+        dagger:       { r: 110, arc: 0.9,  color: '#e2e8f0', near: 1.0, wave: 0.3, waveR: 250, waveRad: 12, steal: 0.03 },
+        fire_axe:     { r: 120, arc: 1.0,  color: '#f97316', near: 1.0, wave: 0.5, waveR: 280, waveRad: 16 },
+        frost_spear:  { r: 150, arc: 0.32, color: '#7dd3fc', near: 1.0, wave: 0.5, waveR: 300, waveRad: 10 },
+        blood_scythe: { r: 140, arc: 1.5,  color: '#dc2626', near: 1.0, wave: 0.5, waveR: 280, waveRad: 20, steal: 0.12 },
+        arcana_sword: { r: 165, arc: 1.3,  color: '#fde68a', near: 1.2, wave: 0.8, waveR: 380, waveRad: 26, pierce: true }
     };
+    function meleeReach(wid) { const c = WEAPON_MELEE[wid]; return c ? Math.max(c.r, c.waveR) : 380; }
     const meleeSlashes = [];
     function playerVampHeal(dmg, ratio) {
         const total = (ratio || 0) + (player.vampTimer > 0 ? 0.03 : 0);
@@ -8492,69 +8491,102 @@
         if (Math.random() < 0.35) addFloatingText(player.x, player.y - 26, `🩸 +${heal} HP`, '#f87171');
     }
     function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return Math.abs(d); }
-    function performMeleeSlash(wid, angle, dmgPerHit, isSecond) {
+    // 서리 창: 보스 포함 1초 빙결, 같은 몬스터는 5초에 한 번
+    function weaponFrost(m) {
+        if (m.dormant || Date.now() - (m.lastWFreeze || 0) <= 5000) return 0;
+        m.lastWFreeze = Date.now();
+        if (mpRole !== 'client') m.frozenTimer = 1;
+        playSound('freeze');
+        addFloatingText(m.x, m.y - 70, '❄️ 빙결!', '#7dd3fc');
+        return 1001;
+    }
+    // 크리티컬: 하늘에서 번개 + 아주 큰 글자 + 금빛 폭발
+    function showCritical(x, y, dmg) {
+        createLightningBolt(x, y, '#fde047');
+        createLightningBolt(x + (Math.random() - 0.5) * 50, y, '#ffffff');
+        for (let k = 0; k < 28; k++) {
+            const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 7;
+            particles.push({ x: x, y: y - 10, vx: Math.cos(a) * s, vy: Math.sin(a) * s, size: 5 + Math.random() * 5, color: k % 3 ? '#fde047' : '#ffffff', life: 28 });
+        }
+        floatingTexts.push({ x: x, y: y - 95, text: '💥 CRITICAL!!', sub: dmg ? dmg.toLocaleString() : '', color: '#fde047', life: 85, max: 85, crit: true });
+    }
+    function critFlash() {
+        const fl = document.getElementById('crit-flash');
+        if (fl) { fl.style.transition = 'none'; fl.style.opacity = '1'; setTimeout(() => { fl.style.transition = 'opacity .5s'; fl.style.opacity = '0'; }, 150); }
+        screenShake = 26;
+        playSound('thunder');
+    }
+    function drawCritText(c, ft) {
+        const age = (ft.max || 85) - ft.life;
+        let s = age < 7 ? 0.4 + age / 7 * 1.3 : (age < 14 ? 1.7 - (age - 7) / 7 * 0.7 : 1);   // "펑" 커졌다가 줄어듦
+        c.save();
+        c.globalAlpha = Math.min(1, ft.life / 18);
+        c.translate(ft.x, ft.y); c.scale(s, s);
+        c.textAlign = 'center'; c.lineJoin = 'round';
+        c.font = '900 50px "Noto Sans KR"';
+        c.shadowColor = '#f59e0b'; c.shadowBlur = 26;
+        c.strokeStyle = '#451a03'; c.lineWidth = 10; c.strokeText(ft.text, 0, 0);
+        const g = c.createLinearGradient(0, -40, 0, 6); g.addColorStop(0, '#fffbeb'); g.addColorStop(0.5, '#fde047'); g.addColorStop(1, '#f59e0b');
+        c.fillStyle = g; c.fillText(ft.text, 0, 0);
+        if (ft.sub) {
+            c.font = '900 40px "Noto Sans KR"';
+            c.strokeText(ft.sub, 0, 46); c.fillStyle = '#ffffff'; c.fillText(ft.sub, 0, 46);
+        }
+        c.restore();
+    }
+    function performMeleeSlash(wid, angle, base) {
         const cfg = WEAPON_MELEE[wid];
         if (!cfg) return;
         const px = player.x, py = player.y - 10;
-        let crit = false, dmg = dmgPerHit;
-        if (wid === 'arcana_sword' && Math.random() < 0.01) { crit = true; dmg = dmgPerHit * 2; }   // 성검: 1% 확률 200% 크리티컬
+        const crit = wid === 'arcana_sword' && Math.random() < 0.01;   // 성검: 100번에 1번 크리티컬 (피해 2배)
+        const mult = crit ? 2 : 1;
         meleeSlashes.push({ x: px, y: py, a: angle, r: cfg.r, arc: cfg.arc, color: cfg.color, wid: wid, crit: crit, life: 12 });
         mpRecordShot(px, py, angle, [0], 0.1, 'm_' + wid + (crit ? '!' : ''), cfg.color, cfg.r, 12, 0);
+        // 가까이 베기: 가장 가까운 한 마리는 100%, 범위 안 나머지는 절반
         const hits = [];
         for (const m of monsters) {
             if (m.hp <= 0) continue;
             const d = Math.hypot(m.x - px, (m.y - 8) - py);
             if (d - m.radius > cfg.r) continue;
             if (angDiff(Math.atan2((m.y - 8) - py, m.x - px), angle) > cfg.arc + Math.atan2(m.radius, Math.max(d, 1))) continue;
-            hits.push(m);
+            hits.push([d, m]);
         }
-        const hitSet = new Set(hits);
-        for (const m of hits) {
+        hits.sort((a, b) => a[0] - b[0]);
+        const hitSet = new Set(hits.map(h => h[1]));
+        hits.forEach(([d, m], k) => {
             const idx = monsters.indexOf(m);
-            if (idx < 0) continue;
-            let frz = 0;
-            if (wid === 'frost_spear' && Date.now() - (m.lastWFreeze || 0) > 5000 && !m.dormant) {   // 빙결: 보스 포함 1초, 같은 몬스터는 5초에 한 번
-                m.lastWFreeze = Date.now();
-                frz = 1001;
-                if (mpRole !== 'client') { m.frozenTimer = 1; }
-                playSound('freeze');
-                addFloatingText(m.x, m.y - 70, '❄️ 빙결!', '#7dd3fc');
-            }
+            if (idx < 0) return;
+            const dmg = Math.max(1, Math.round(base * cfg.near * (k === 0 ? 1 : 0.5) * mult));
+            const frz = wid === 'frost_spear' ? weaponFrost(m) : 0;
             damageMonster(m, idx, dmg, frz);
-            if (crit && m === hits[0]) floatingTexts.push({ x: m.x, y: m.y - 70, text: `💥 CRITICAL!! ${dmg.toLocaleString()}`, color: '#fde047', life: 75, size: 30 });
-            if (wid === 'blood_scythe') playerVampHeal(dmg, 0.12);
-            else playerVampHeal(dmg, 0);
-            if (wid === 'fire_axe') {                                  // 스플래시: 주변에도 50% + 불탐
+            if (crit && k === 0) showCritical(m.x, m.y, dmg);
+            playerVampHeal(dmg, cfg.steal || 0);
+            if (wid === 'fire_axe') {                                  // 스플래시: 맞은 몬스터 주변에 50% + 불
                 for (const o of monsters.slice()) {
                     if (hitSet.has(o) || o.hp <= 0 || Math.hypot(o.x - m.x, o.y - m.y) > 110) continue;
                     const oi = monsters.indexOf(o); if (oi < 0) continue;
                     damageMonster(o, oi, Math.max(1, Math.round(dmg * 0.5)), 0);
                     hitSet.add(o);
                 }
-                for (let k = 0; k < 6; k++) particles.push({ x: m.x + (Math.random() - 0.5) * 60, y: m.y - 10 + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 3, vy: -1 - Math.random() * 2, size: 7, color: k % 2 ? '#f97316' : '#fde047', life: 18 });
+                for (let q = 0; q < 6; q++) particles.push({ x: m.x + (Math.random() - 0.5) * 60, y: m.y - 10 + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 3, vy: -1 - Math.random() * 2, size: 7, color: q % 2 ? '#f97316' : '#fde047', life: 18 });
                 weaponOnHit({ wBurn: true }, m, dmg);
             }
-            if (wid === 'thunder_blades') {                            // 번개 스플래시: 주변 2마리에게 40%
-                const near = monsters.filter(o => !hitSet.has(o) && o.hp > 0 && Math.hypot(o.x - m.x, o.y - m.y) < 220).sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y)).slice(0, 2);
-                for (const o of near) {
-                    lightningBolts.push({ segments: [{ x1: m.x, y1: m.y - 10, x2: (m.x + o.x) / 2 + (Math.random() - 0.5) * 30, y2: (m.y + o.y) / 2 - 10 }, { x1: (m.x + o.x) / 2, y1: (m.y + o.y) / 2 - 10, x2: o.x, y2: o.y - 10 }], targetX: o.x, targetY: o.y, life: 10, maxLife: 10, color: '#fde047' });
-                    const oi = monsters.indexOf(o); if (oi >= 0) damageMonster(o, oi, Math.max(1, Math.round(dmg * 0.4)), 0);
-                    hitSet.add(o);
-                }
-            }
-        }
-        if (crit) {
-            const fl = document.getElementById('crit-flash');
-            if (fl) { fl.style.opacity = '1'; setTimeout(() => { fl.style.opacity = '0'; }, 260); }
-            screenShake = 20;
-            playSound('thunder');
-            if (!hits.length) floatingTexts.push({ x: px + Math.cos(angle) * 80, y: py - 40, text: '💥 CRITICAL!!', color: '#fde047', life: 60, size: 26 });
-        }
-        if (wid === 'arcana_sword' && !isSecond) {                     // 짧은 빛 검기 (뚫고 나감)
-            projectiles.push({ x: px + Math.cos(angle) * 40, y: py + Math.sin(angle) * 40, vx: Math.cos(angle) * 13, vy: Math.sin(angle) * 13, angle: angle, radius: 26,
-                damage: Math.max(1, Math.round(dmgPerHit * 0.5)), color: '#fde68a', isPlayerShot: true, shotStyle: 'w_arcana_sword', life: 14, pierce: true, hitSet: hitSet });
-        }
-        if (wid === 'thunder_blades' && !isSecond) setTimeout(() => { if (player.hp > 0 && !(player.stunTimer > 0)) performMeleeSlash(wid, angle, dmgPerHit, true); }, 140);   // 빠른 2연속 베기
+        });
+        // 검기: 원거리 한 발보다 약하고 짧게 날아감 (베기에 맞은 몬스터는 다시 맞지 않음)
+        const spd = 13, life = Math.max(6, Math.round((cfg.waveR - 30) / spd));
+        const W = {
+            x: px + Math.cos(angle) * 30, y: py + Math.sin(angle) * 30, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, angle: angle,
+            radius: cfg.waveRad, damage: Math.max(1, Math.round(base * cfg.wave * mult)), color: cfg.color, isPlayerShot: true,
+            shotStyle: 'w_' + wid, life: life, hitSet: hitSet
+        };
+        if (cfg.pierce) W.pierce = true;
+        if (cfg.steal) W.lifeStealRatio = cfg.steal;
+        if (wid === 'fire_axe') W.wBurn = true;
+        if (wid === 'frost_spear') W.wFrost = true;
+        if (crit && !hits.length) W.wCrit = true;
+        projectiles.push(W);
+        mpRecordShot(px, py, angle, [0], spd, 'w_' + wid, cfg.color, cfg.waveRad, life, 30);
+        if (crit) critFlash();
     }
     function drawMeleeSlashAt(c, x, y, a, r, wid, crit, lifeFrac) {
         const cfg = WEAPON_MELEE[wid] || { arc: 1, color: '#ffffff' };
@@ -8620,7 +8652,11 @@
             if (now - (s.t || 0) > 1500) continue;
             const frames = Math.min(10, Math.max(0, (now - s.t) / 16.7));
             const offs = Array.isArray(s.o) ? s.o : Object.values(s.o || { 0: 0 });
-            if (s.st && s.st.startsWith('m_') && s.st.endsWith('!')) floatingTexts.push({ x: s.x + Math.cos(s.a || 0) * 90, y: s.y - 50, text: '💥 CRITICAL!!', color: '#fde047', life: 60, size: 26 });
+            if (s.st && s.st.startsWith('m_') && s.st.endsWith('!')) {      // 친구의 성검 크리티컬: 번개 + 큰 글자
+                const cx = s.x + Math.cos(s.a || 0) * 110, cy = s.y + Math.sin(s.a || 0) * 110;
+                createLightningBolt(cx, cy, '#fde047');
+                floatingTexts.push({ x: cx, y: cy - 95, text: '💥 CRITICAL!!', sub: '', color: '#fde047', life: 85, max: 85, crit: true });
+            }
             for (const off of offs) {
                 const a2 = (s.a || 0) + (Number(off) || 0);
                 const vx = Math.cos(a2) * (s.s || 9), vy = Math.sin(a2) * (s.s || 9);
