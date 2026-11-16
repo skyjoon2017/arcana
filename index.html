@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="game-version" content="v12">
+    <meta name="game-version" content="v12.1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>아르카나 크로니클 2.0 - 5인 멀티플레이 & 하드코어 RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -5093,6 +5093,7 @@
         ctx.save();
         ctx.translate(m.x, m.y);
         const facing = player.x < m.x ? -1 : 1;
+        if (m.spawnInvUntil && Date.now() < m.spawnInvUntil) ctx.globalAlpha = 0.45 + 0.35 * Math.sin(Date.now() * 0.03);   // 무적: 반짝반짝
         renderMonsterAppearance(ctx, m, facing);
         ctx.restore();
 
@@ -5439,9 +5440,15 @@
             if (m.isTrex) mpTrexHatch(m); else mpKrakenAwake(m);
             return;
         }
+        if (m.spawnInvUntil && Date.now() < m.spawnInvUntil) {                 // 새끼: 나오고 2초 무적
+            if (Date.now() - (m._invTxtAt || 0) > 400) { m._invTxtAt = Date.now(); addFloatingText(m.x, m.y - 40, '✨ 무적!', '#fde68a'); }
+            return;
+        }
+        if (m.isDino && !attackerUid && dmg > 0 && player.hp > 0 && Math.hypot(player.x - m.x, player.y - m.y) <= m.radius + 160) dinoReflect(dmg);
         if (mpRole === 'client') {
             if (window.MPNet && m.nid) window.MPNet.queueHit(m.nid, dmg, frz || 0);
-            const shown = m.enraged && !m.isCrocBaby ? Math.max(1, Math.round(dmg * 0.5)) : dmg;
+            let shown = m.enraged && !m.isCrocBaby ? Math.max(1, Math.round(dmg * 0.5)) : dmg;
+            if (BABY_TYPES.includes(m.type) && babyParentNear(m)) shown = Math.max(1, Math.round(shown / 5));
             m._localHitAt = Date.now();
             m.hp = Math.max(1, m.hp - shown);
             m.hitFlash = 6;
@@ -5459,6 +5466,14 @@
                 return;
             }
             dmg = Math.max(1, Math.round(dmg * 0.5));
+        }
+        if (m.isBaby) {                                                        // 새끼: 회피 20% · 어미가 살아 있으면 피해 1/5
+            if (Math.random() < 0.2) {
+                m.lastHitAt = Date.now();
+                if (Date.now() - (m._dodgeTxtAt || 0) > 400) { m._dodgeTxtAt = Date.now(); mpCrocSay(m, 60, "💨 회피!", "#fca5a5"); }
+                return;
+            }
+            if (monsters.some(o => o.nid === m.motherNid && o.hp > 0)) dmg = Math.max(1, Math.round(dmg / 5));
         }
         m.hp -= dmg;
         m.lastHitAt = Date.now();
@@ -5485,7 +5500,7 @@
             const info = { nid: m.nid || '', type: deadType, dex: m.dexType || m.type, name: m.name, x: Math.round(m.x), y: Math.round(m.y), exp: m.expValue || 0, killer: attackerUid || window.cloudUserId };
 
             monsters.splice(idx, 1);
-            const bossChest = deadType.startsWith('boss') && !m.isMinion;
+            const bossChest = deadType.startsWith('boss') && !m.isMinion && !['boss_orc', 'boss_archmage', 'boss_dragon'].includes(deadType);   // 말벌 보스부터 보물상자
             mpAddLoot({ x: info.x, y: info.y, gold: m.goldValue, isLifeHeart: false, isGoldBar: false, isChest: bossChest, life: bossChest ? 1200 : 540 });
 
             if (m.isCroc) crocWave.lastDeath = m.isPack ? 'pack' : 'normal';
@@ -7070,6 +7085,7 @@
                 if (player.shieldBuffTimer > 0) {
                     addFloatingText(player.x, player.y - 32, "🛡️ 방패 무적! (상태이상 면역)", "#38bdf8");
                 } else {
+                    if (ep.stunSec) mpApplyDebuff('stun', ep.stunSec);
                     if (ep.inkSlow) {
                         player.mslowTimer = Math.max(player.mslowTimer || 0, 2);
                         addFloatingText(player.x, player.y - 56, "🦑 먹물! 2초간 느려짐", "#a5b4fc");
@@ -7802,7 +7818,7 @@
         enemyProjectiles.push(o);
         if (mpRole === 'host') {
             mpQueueFx('ep', { x: Math.round(o.x), y: Math.round(o.y), vx: Math.round(o.vx * 100) / 100, vy: Math.round(o.vy * 100) / 100,
-                r: o.radius, d: o.damage, c: o.color || '#f43f5e', w: o.isWebNet ? 1 : (o.inkSlow ? 2 : (o.style || 0)), l: o.life });
+                r: o.radius, d: o.damage, c: o.color || '#f43f5e', w: o.isWebNet ? 1 : (o.inkSlow ? 2 : (o.style || 0)), l: o.life, sn: o.stunSec || 0 });
         }
     }
     function mpLightning(x, y, c) {
@@ -7871,6 +7887,7 @@
             d.baseMaxHp = d.maxHp;
             d.nid = key; d.walkFrame = Math.random() * 10; d.hitFlash = 0; d.frozenTimer = 0; d.attackCooldown = 0; d.rangedTimer = 0;
             d.x = +a[1]; d.y = +a[2];
+            if (BABY_TYPES.includes(ctype)) d.spawnInvUntil = Date.now() + 2000;
             m = d;
             monsters.push(m);
             mpMirror[key] = m;
@@ -7962,7 +7979,7 @@
         if (window.serverNow() - (d.t || 0) > 4000) return;
         if (d.k === 'ep') {
             const frames = Math.min(8, Math.max(0, (window.serverNow() - d.t) / 16.7));
-            enemyProjectiles.push({ x: d.x + d.vx * frames, y: d.y + d.vy * frames, vx: d.vx, vy: d.vy, radius: d.r, damage: d.d, color: d.c, isWebNet: d.w === 1, inkSlow: d.w === 2, epStyle: d.w >= 3 ? d.w : 0, life: Math.max(1, d.l - frames) });
+            enemyProjectiles.push({ x: d.x + d.vx * frames, y: d.y + d.vy * frames, vx: d.vx, vy: d.vy, radius: d.r, damage: d.d, color: d.c, isWebNet: d.w === 1, inkSlow: d.w === 2, epStyle: d.w >= 3 ? d.w : 0, stunSec: d.sn || 0, life: Math.max(1, d.l - frames) });
         } else if (d.k === 'rg') {
             const frames = Math.min(8, Math.max(0, (window.serverNow() - d.t) / 16.7));
             for (let k = 0; k < (d.n || 0); k++) {
@@ -8289,7 +8306,7 @@
         m.waterTimer = (m.waterTimer == null ? 90 : m.waterTimer) - 1;
         if (m.waterTimer <= 0 && dist < 800) {
             m.waterTimer = E ? 70 : 100;
-            for (let k = 0; k < 3; k++) mpSpawnEnemyProj({ x: m.x + Math.cos(ang) * (70 + k * 26), y: m.y - 20 + Math.sin(ang) * (70 + k * 26), vx: Math.cos(ang) * 10, vy: Math.sin(ang) * 10, radius: 12, damage: Math.floor(m.atk * 0.7), color: '#38bdf8', life: 80 });
+            for (let k = 0; k < 3; k++) mpSpawnEnemyProj({ x: m.x + Math.cos(ang) * (70 + k * 26), y: m.y - 20 + Math.sin(ang) * (70 + k * 26), vx: Math.cos(ang) * 10, vy: Math.sin(ang) * 10, radius: 12, damage: Math.floor(m.atk * 0.7), color: '#38bdf8', life: 80, stunSec: 2 });
             if (Math.random() < 0.35) mpCrocSay(m, 140, "🐊 물 대포!!", "#7dd3fc");
         }
         // 빨간 새끼 악어: 분노 10초 뒤부터 15초마다 3마리 (한 마리당 최대 6마리)
@@ -8356,8 +8373,10 @@
     }
     function mpApplyDebuff(effect, sec) {
         if (effect === 'stun') {
+            if (Date.now() < (player.stunImmuneUntil || 0)) return;          // 기절이 풀린 뒤 2초는 다시 기절하지 않음
             player.stunTimer = Math.max(player.stunTimer || 0, sec);
-            addFloatingText(player.x, player.y - 70, "💫 기절! 3초간 이동·공격 불가 (아이템은 사용 가능)", "#fde047");
+            player.stunImmuneUntil = Date.now() + (sec + 2) * 1000;
+            addFloatingText(player.x, player.y - 70, `💫 기절! ${sec}초간 이동·공격 불가 (아이템은 사용 가능)`, "#fde047");
         } else if (effect === 'mslow') {
             player.mslowTimer = Math.max(player.mslowTimer || 0, sec);
             addFloatingText(player.x, player.y - 70, "⚡ 감전! 1초간 느려짐", "#67e8f9");
@@ -8373,7 +8392,7 @@
         }
     }
     // (x, y) 둘레 range 안의 모든 사람에게 피해 (+ 기절/공속 저하)
-    function mpGolemHitAt(x, y, range, dmg, text, effect) {
+    function mpGolemHitAt(x, y, range, dmg, text, effect, sec) {
         for (const T of mpAllTargets()) {
             if (T.x <= RIVER_X + 20) continue;
             if (Math.hypot(T.x - x, (T.y - y) * 1.6) > range) continue;
@@ -8382,12 +8401,12 @@
             T.hp -= dmg;
             T.invincibleTimer = 30;
             if (T.isProxy) {
-                if (effect) mpQueueFx('st', { u: T.uid, e: effect, s: 3 });
+                if (effect) mpQueueFx('st', { u: T.uid, e: effect, s: sec || 3 });
             } else {
                 screenShake = 16;
                 addFloatingText(T.x, T.y - 40, `${text} -${dmg}`, '#f43f5e');
                 playSound('hit');
-                if (effect) mpApplyDebuff(effect, 3);
+                if (effect) mpApplyDebuff(effect, sec || 3);
                 if (player.hp <= 0) handlePlayerDeath();
             }
         }
@@ -8645,7 +8664,7 @@
             if (!s.hit && s.t >= s.d) {
                 s.hit = true;
                 for (let k = 0; k < 8; k++) particles.push({ x: s.x + (Math.random() - 0.5) * s.r, y: s.y + (Math.random() - 0.5) * s.r * 0.4, vx: (Math.random() - 0.5) * 4, vy: -Math.random() * 4, size: 5, color: '#bae6fd', life: 20 });
-                if (s.host) mpGolemHitAt(s.x, s.y, s.r, s.dmg, '🦑 바닥에서 솟은 촉수!', null);
+                if (s.host) mpGolemHitAt(s.x, s.y, s.r, s.dmg, '🦑 촉수에 휘감김!!', 'stun', 2.5);
             }
             if (s.t >= s.d + 34) seaTentacles.splice(i, 1);
         }
@@ -9171,10 +9190,14 @@
         m.babiesBorn = true;
         const type = m.isTrex ? (m.male ? 'dino_baby_m' : 'dino_baby') : m.isCroc ? 'croc_baby' : (m.isGolemKing ? 'golem_lava_imp' : 'sea_squidling');
         for (let s = 0; s < 10; s++) {
-            const sa = s / 10 * Math.PI * 2 + Math.random() * 0.3;
-            spawnMonster(type, m.x + Math.cos(sa) * (m.radius + 50), m.y + Math.sin(sa) * (m.radius * 0.6 + 40));
+            const sa = s / 10 * Math.PI * 2 + Math.random() * 0.4, rr = 300 + Math.random() * 200;      // 보스 주변 300~500 거리로 흩어짐
+            let bx = m.x + Math.cos(sa) * rr, by = m.y + Math.sin(sa) * rr * 0.8;
+            if (m.leashMinX !== undefined) bx = Math.max(m.leashMinX + 60, Math.min((m.leashMaxX || WORLD_WIDTH) - 60, bx));
+            by = Math.max(100, Math.min(WORLD_HEIGHT - 100, by));
+            spawnMonster(type, bx, by);
             const b = monsters[monsters.length - 1];
-            if (b && b.type === type) { b.motherNid = m.nid; b.homeX = m.x; b.homeY = m.y; }
+            if (b && b.type === type) { b.motherNid = m.nid; b.homeX = bx; b.homeY = by; b.isBaby = true; b.spawnInvUntil = Date.now() + 2000; }
+            for (let q = 0; q < 8; q++) particles.push({ x: bx + (Math.random() - 0.5) * 40, y: by - 10 + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 3, vy: -Math.random() * 3, size: 5, color: q % 2 ? '#fde68a' : '#fef3c7', life: 22 });
         }
         const label = m.isTrex ? '🦖 아기 티라노' : m.isCroc ? '🐊 붉은 새끼 악어' : (m.isGolemKing ? '🔥 용암 꼬마 골렘' : '🦑 붉은 새끼 오징어');
         mpCrocSay(m, 210, `${label} 10마리가 태어났습니다!!`, "#f87171");
@@ -9227,8 +9250,8 @@
         m.x = m.homeX; m.y = m.homeY;
     }
     // 땅에 떨어지는 공격 (경고 원 → 쾅): b = 천벌뇌전, s = 점프 밟기, v = 화산 불덩이
-    function dinoStrike(x, y, delay, r, dmg, kind) {
-        dinoStrikes.push({ x: x, y: y, t: 0, d: delay, r: r, dmg: dmg, k: kind, hit: false, host: mpRole !== 'client' });
+    function dinoStrike(x, y, delay, r, dmg, kind, stun) {
+        dinoStrikes.push({ x: x, y: y, t: 0, d: delay, r: r, dmg: dmg, k: kind, stun: stun || 0, hit: false, host: mpRole !== 'client' });
         if (mpRole === 'host') mpQueueFx('ds', { x: Math.round(x), y: Math.round(y), d: delay, r: r, q: kind });
     }
     // 한 사람(P)에게 직접 피해
@@ -9372,7 +9395,7 @@
             m.stompT = 42;
             m.stompSX = m.x; m.stompSY = m.y;
             m.stompX = dinoClampX(P.x); m.stompY = dinoClampY(P.y);
-            dinoStrike(m.stompX, m.stompY, 42, J ? 90 : 130, Math.floor(m.atk * 1.8), 's');
+            dinoStrike(m.stompX, m.stompY, 42, J ? 90 : 130, Math.floor(m.atk * 1.8), 's', J ? 1 : 3);
         }
         // ⚡ 소리 지르며 천벌뇌전
         m.boltT = (m.boltT == null ? 260 : m.boltT) - 1;
@@ -9449,7 +9472,7 @@
                 else window.__rings.push({ x: s.x, y: s.y, r: s.r * 1.3, c: s.k === 'v' ? '#fb923c' : '#e7e5e4', life: 24 });
                 for (let k = 0; k < 10; k++) particles.push({ x: s.x + (Math.random() - 0.5) * s.r, y: s.y + (Math.random() - 0.5) * s.r * 0.4, vx: (Math.random() - 0.5) * 5, vy: -Math.random() * 4, size: 6, color: s.k === 'v' ? (k % 2 ? '#f97316' : '#fde047') : (s.k === 'b' ? '#fef08a' : '#a8a29e'), life: 22 });
                 if (near) screenShake = Math.max(screenShake, s.k === 'b' ? 6 : 12);
-                if (s.host) mpGolemHitAt(s.x, s.y, s.r, s.dmg, s.k === 'b' ? '⚡ 천벌뇌전!' : s.k === 's' ? '🦶 티라노 밟기!!' : '🌋 화산 불덩이!', null);
+                if (s.host) mpGolemHitAt(s.x, s.y, s.r, s.dmg, s.k === 'b' ? '⚡ 천벌뇌전!' : s.k === 's' ? '🦶 티라노에게 밟혀 기절!!' : '🌋 화산 불덩이!', s.stun ? 'stun' : null, s.stun);
             }
             if (s.t >= s.d + 20) dinoStrikes.splice(i, 1);
         }
@@ -9525,6 +9548,20 @@
         c.restore();
     }
 
+    // ---- v12.1: 새끼 보호 · 공룡 반사 ----
+    const BABY_TYPES = ['croc_baby', 'golem_lava_imp', 'sea_squidling', 'dino_baby', 'dino_baby_m'];
+    function babyParentNear(m) {   // (같이 하기 화면용) 근처에 어미가 살아 있는지
+        const pick = m.type === 'croc_baby' ? (o => o.isCroc) : m.type === 'golem_lava_imp' ? (o => o.isGolemKing) : m.type === 'sea_squidling' ? (o => o.isKraken) : (o => o.isTrex);
+        return monsters.some(o => !o.isMinion && o.hp > 0 && pick(o) && Math.hypot(o.x - m.x, o.y - m.y) < 2500);
+    }
+    // 공룡은 몸이 딱딱해서, 가까이 붙어 때리면 준 피해의 5%가 튕겨 돌아옴 (반사로는 죽지 않음)
+    function dinoReflect(dmg) {
+        if (player.shieldBuffTimer > 0 || player.hp <= 1) return;
+        const r = Math.max(1, Math.round(dmg * 0.05));
+        player.hp = Math.max(1, player.hp - r);
+        player._reflAcc = (player._reflAcc || 0) + r;
+        if (Date.now() - (player._reflAt || 0) > 450) { player._reflAt = Date.now(); addFloatingText(player.x, player.y - 46, `🦴 딱딱해서 튕김! -${player._reflAcc}`, '#e7e5e4'); player._reflAcc = 0; }
+    }
     // ---- 친구 마법 보이기 ----
     const remoteShots = [];
     let mpShotSeq = 0;
